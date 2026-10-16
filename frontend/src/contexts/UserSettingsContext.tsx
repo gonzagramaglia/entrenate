@@ -29,6 +29,7 @@ interface UserSettingsContextType {
   // Funciones para ejercicios completados
   completedExercises: CompletedExercises
   toggleExerciseCompleted: (date: string, routineId: number, exerciseId: number, setNumber: number, routine?: Routine) => void
+  toggleExerciseAllSets: (date: string, routineId: number, exerciseId: number, totalSets: number, routine?: Routine) => void
   getCompletedExercisesForRoutine: (date: string, routineId: number) => { [exerciseId: number]: number[] }
   getRoutineProgress: (date: string, routineId: number, routine: Routine) => number
   resetCompletedExercisesForDate: (date: string) => void
@@ -135,46 +136,43 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [settings.favoriteExercises.length, settings.hasConfiguredFavorites])
 
-  // Función para alternar el estado de completado de un ejercicio
+  // Función para alternar el estado de completado de una serie de un ejercicio
   const toggleExerciseCompleted = useCallback((date: string, routineId: number, exerciseId: number, setNumber: number, routine?: Routine) => {
     setCompletedExercises(prev => {
-      const newState = { ...prev }
+      const dateObj = { ...(prev[date] || {}) }
+      const routineObj = { ...(dateObj[routineId] || {}) }
+      const exerciseSets = [...(routineObj[exerciseId] || [])]
       
-      // Inicializar estructuras si no existen
-      if (!newState[date]) {
-        newState[date] = {}
-      }
-      if (!newState[date][routineId]) {
-        newState[date][routineId] = {}
-      }
-      if (!newState[date][routineId][exerciseId]) {
-        newState[date][routineId][exerciseId] = []
-      }
-      
-      const exerciseSets = newState[date][routineId][exerciseId]
-      
-      // Alternar el estado de la serie
+      let newExerciseSets: number[]
       if (exerciseSets.includes(setNumber)) {
-        // Remover la serie si ya está completada
-        newState[date][routineId][exerciseId] = exerciseSets.filter(set => set !== setNumber)
+        newExerciseSets = exerciseSets.filter(set => set !== setNumber)
       } else {
-        // Agregar la serie si no está completada
-        newState[date][routineId][exerciseId] = [...exerciseSets, setNumber].sort((a, b) => a - b)
+        newExerciseSets = [...exerciseSets, setNumber].sort((a, b) => a - b)
       }
       
-      // Guardar en localStorage
+      const newRoutineObj = {
+        ...routineObj,
+        [exerciseId]: newExerciseSets
+      }
+      const newDateObj = {
+        ...dateObj,
+        [routineId]: newRoutineObj
+      }
+      const newState = {
+        ...prev,
+        [date]: newDateObj
+      }
+      
       localStorage.setItem('completed-exercises', JSON.stringify(newState))
       
-      // Verificar si la rutina está completa después del cambio
-      if (routine) {
-        const completedForRoutine = newState[date][routineId] || {}
+      if (routine && routine.exercises) {
         let completedSets = 0
         let totalSets = 0
         
         routine.exercises.forEach((exercise: any) => {
-          const exerciseId = exercise.exercise_id
-          const completedSetsForExercise = completedForRoutine[exerciseId]?.length || 0
-          const targetSets = exercise.sets
+          const exId = exercise.exercise_id || exercise.id
+          const completedSetsForExercise = newRoutineObj[exId]?.length || 0
+          const targetSets = exercise.sets || 1
           
           completedSets += Math.min(completedSetsForExercise, targetSets)
           totalSets += targetSets
@@ -182,9 +180,59 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
         
         const progress = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0
         
-        // Si la rutina está completa (100%), disparar evento de confeti
         if (progress === 100) {
-          console.log('¡Rutina completada manualmente!')
+          const confettiEvent = new CustomEvent('routineCompletedManually', { 
+            detail: { routineId, routine, progress } 
+          })
+          window.dispatchEvent(confettiEvent)
+        }
+      }
+      
+      return newState
+    })
+  }, [])
+
+  // Función para marcar/desmarcar todas las series de un ejercicio
+  const toggleExerciseAllSets = useCallback((date: string, routineId: number, exerciseId: number, totalSets: number, routine?: Routine) => {
+    setCompletedExercises(prev => {
+      const dateObj = { ...(prev[date] || {}) }
+      const routineObj = { ...(dateObj[routineId] || {}) }
+      const currentSets = routineObj[exerciseId] || []
+      
+      const isAlreadyCompleted = currentSets.length >= totalSets
+      const newExerciseSets = isAlreadyCompleted ? [] : Array.from({ length: totalSets }, (_, i) => i + 1)
+      
+      const newRoutineObj = {
+        ...routineObj,
+        [exerciseId]: newExerciseSets
+      }
+      const newDateObj = {
+        ...dateObj,
+        [routineId]: newRoutineObj
+      }
+      const newState = {
+        ...prev,
+        [date]: newDateObj
+      }
+      
+      localStorage.setItem('completed-exercises', JSON.stringify(newState))
+      
+      if (routine && routine.exercises) {
+        let completedSets = 0
+        let totalSetsCount = 0
+        
+        routine.exercises.forEach((exercise: any) => {
+          const exId = exercise.exercise_id || exercise.id
+          const completedSetsForExercise = newRoutineObj[exId]?.length || 0
+          const targetSets = exercise.sets || 1
+          
+          completedSets += Math.min(completedSetsForExercise, targetSets)
+          totalSetsCount += targetSets
+        })
+        
+        const progress = totalSetsCount > 0 ? Math.round((completedSets / totalSetsCount) * 100) : 0
+        
+        if (progress === 100) {
           const confettiEvent = new CustomEvent('routineCompletedManually', { 
             detail: { routineId, routine, progress } 
           })
@@ -210,9 +258,9 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
     let totalSets = 0
     
     routine.exercises.forEach((exercise: any) => {
-      const exerciseId = exercise.exercise_id
-      const completedSetsForExercise = completedForRoutine[exerciseId]?.length || 0
-      const targetSets = exercise.sets
+      const exId = exercise.exercise_id || exercise.id
+      const completedSetsForExercise = completedForRoutine[exId]?.length || 0
+      const targetSets = exercise.sets || 1
       
       completedSets += Math.min(completedSetsForExercise, targetSets)
       totalSets += targetSets
@@ -254,6 +302,7 @@ export function UserSettingsProvider({ children }: { children: ReactNode }) {
     setOnSocialSettingsChange,
     completedExercises,
     toggleExerciseCompleted,
+    toggleExerciseAllSets,
     getCompletedExercisesForRoutine,
     getRoutineProgress,
     resetCompletedExercisesForDate

@@ -32,7 +32,6 @@ import RoutineDetail from './RoutineDetail'
 import { useUserSettings } from '../../contexts/UserSettingsContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
-import { useAuth } from '../../contexts/AuthContext'
 
 interface RoutineListProps {
   activeRoutine?: any
@@ -43,7 +42,6 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
   const { language } = useLanguage()
   const t = translations[language].routines
   const { getRoutineProgress, resetCompletedExercisesForDate } = useUserSettings()
-  const { isGuest, signInWithGoogle } = useAuth()
   const [routines, setRoutines] = useState<RoutineWithExercises[]>([])
 
   // Función para detectar si una rutina está completa
@@ -75,89 +73,6 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
     try {
       setLoading(true)
       setError(null)
-      
-      if (isGuest) {
-        // Rutina de prueba para modo invitado
-        const mockRoutine: RoutineWithExercises = {
-          id: 9999,
-          user_id: 'guest',
-          name: 'Rutina de Test',
-          is_active: true,
-          total_exercises: 3,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          exercises: [
-            {
-              id: 9995,
-              routine_id: 9999,
-              exercise_id: 100,
-              exercise_name: language === 'es' ? 'Calentamiento Dinámico' : 'Dynamic Warm Up',
-              sets: 1,
-              reps: 1,
-              weight: 0,
-              order_index: 0,
-              rest_time_seconds: 0,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            },
-            {
-              id: 9996,
-              routine_id: 9999,
-              exercise_id: 1,
-              exercise_name: 'Press de Banca',
-              sets: 1,
-              reps: 10,
-              weight: 60,
-              order_index: 1,
-              rest_time_seconds: 60,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            },
-            {
-              id: 9997,
-              routine_id: 9999,
-              exercise_id: 2,
-              exercise_name: 'Sentadilla',
-              sets: 1,
-              reps: 12,
-              weight: 80,
-              order_index: 2,
-              rest_time_seconds: 90,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            },
-            {
-              id: 9998,
-              routine_id: 9999,
-              exercise_id: 3,
-              exercise_name: 'Peso Muerto',
-              sets: 1,
-              reps: 8,
-              weight: 100,
-              order_index: 3,
-              rest_time_seconds: 120,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            },
-            {
-              id: 9999,
-              routine_id: 9999,
-              exercise_id: 101,
-              exercise_name: language === 'es' ? 'Estiramiento' : 'Stretching',
-              sets: 1,
-              reps: 1,
-              weight: 0,
-              order_index: 4,
-              rest_time_seconds: 0,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-          ]
-        }
-        setRoutines([mockRoutine])
-        setLoading(false)
-        return
-      }
 
       const data = await apiClient.getUserRoutines()
 
@@ -183,17 +98,13 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
     } finally {
       setLoading(false)
     }
-  }, [isGuest])
+  }, [])
 
   useEffect(() => {
     loadRoutines()
   }, [loadRoutines])
 
   const handleCreateRoutine = async (routineData: CreateRoutineRequest | UpdateRoutineRequest) => {
-    if (isGuest) {
-      signInWithGoogle()
-      return
-    }
     try {
       await apiClient.createUserRoutine(routineData as CreateRoutineRequest)
       setOpenCreateDialog(false)
@@ -206,13 +117,23 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
 
   const handleEditRoutine = async (id: number, routineData: UpdateRoutineRequest): Promise<void> => {
     try {
-      await apiClient.updateUserRoutine(id, routineData)
+      const updated = await apiClient.updateUserRoutine(id, routineData)
 
       // Recargar todas las rutinas para obtener los datos actualizados del servidor
       await loadRoutines()
 
+      if (updated) {
+        setSelectedRoutine(updated as RoutineWithExercises)
+      } else {
+        try {
+          const refreshed = await apiClient.getUserRoutine(id)
+          setSelectedRoutine(refreshed as RoutineWithExercises)
+        } catch {
+          // ignore
+        }
+      }
+
       setOpenEditDialog(false)
-      setSelectedRoutine(null)
     } catch (err) {
       console.error('❌ Error actualizando rutina:', err)
       setError('Error al actualizar la rutina')
@@ -235,6 +156,9 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
     try {
       setDeletingRoutineId(id)
       await apiClient.deleteUserRoutine(id)
+      if (activeRoutine?.id === id) {
+        window.dispatchEvent(new CustomEvent('stopRoutine', {}))
+      }
       setDeleteDialogOpen(false)
       setDeletingRoutineId(null)
       loadRoutines()
@@ -349,7 +273,7 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
           elevation={3}
           sx={{
             textAlign: 'center',
-            py: 6,
+            py: 3.5,
             mx: { xs: 1, sm: 0 },
             border: '2px solid',
             borderColor: 'grey.300',
@@ -389,10 +313,6 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
               size="large"
               startIcon={<AddIcon sx={{ color: '#fff' }} />}
               onClick={() => {
-                if (isGuest) {
-                  signInWithGoogle()
-                  return
-                }
                 setOpenCreateDialog(true)
               }}
               sx={{
@@ -582,10 +502,8 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
                             try {
                               const fullRoutine = await apiClient.getUserRoutine(routine.id) as RoutineWithExercises
                               setSelectedRoutine(fullRoutine)
-                              setOpenDetailDialog(true)
-                              const event = new CustomEvent('startRoutineFromModal', { detail: { routine: fullRoutine } })
+                              const event = new CustomEvent('startRoutine', { detail: { routine: fullRoutine } })
                               window.dispatchEvent(event)
-                              window.dispatchEvent(new CustomEvent('navigateToWorkout', {}))
                             } catch (error) {
                               console.error('Error starting routine:', error)
                             }
@@ -652,10 +570,6 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
               <Card
                 elevation={0}
                 onClick={() => {
-                  if (isGuest) {
-                    signInWithGoogle()
-                    return
-                  }
                   setOpenCreateDialog(true)
                 }}
                 sx={{
@@ -728,7 +642,28 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Crear Nueva Rutina</DialogTitle>
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {t.createNew}
+          </Typography>
+          <IconButton
+            onClick={() => setOpenCreateDialog(false)}
+            sx={{
+              color: 'text.secondary',
+              '&:hover': {
+                backgroundColor: 'rgba(0,0,0,0.04)',
+                color: 'text.primary'
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
         <DialogContent>
           <RoutineForm
             onSubmit={handleCreateRoutine}
@@ -737,26 +672,6 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para editar rutina */}
-      <Dialog
-        open={openEditDialog}
-        onClose={(_, reason) => {
-          if (reason !== 'backdropClick') setOpenEditDialog(false)
-        }}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Editar Rutina</DialogTitle>
-        <DialogContent>
-          {selectedRoutine && (
-            <RoutineForm
-              routine={selectedRoutine}
-              onSubmit={(data) => handleEditRoutine(selectedRoutine.id, data)}
-              onCancel={() => setOpenEditDialog(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Dialog para ver detalles de rutina */}
       <Dialog
@@ -781,7 +696,7 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
           pb: 1
         }}>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Detalles
+            {t.detailsTitle}
           </Typography>
           <IconButton
             onClick={() => setOpenDetailDialog(false)}
@@ -802,7 +717,6 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
               routine={selectedRoutine}
               onClose={() => setOpenDetailDialog(false)}
               onEdit={() => {
-                setOpenDetailDialog(false)
                 setOpenEditDialog(true)
               }}
               onStart={() => {
@@ -813,11 +727,12 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
                   })
                   window.dispatchEvent(event)
                 } else {
-                  // Solo iniciar la rutina sin cerrar el modal ni cambiar de tab
+                  // Iniciar la rutina, cerrar modal y navegar a tab workout
                   const event = new CustomEvent('startRoutineFromModal', {
                     detail: { routine: selectedRoutine }
                   })
                   window.dispatchEvent(event)
+                  setOpenDetailDialog(false)
                 }
               }}
               onDelete={() => {
@@ -845,21 +760,65 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
         </DialogContent>
       </Dialog>
 
+      {/* Dialog para editar rutina (se abre encima del modal de detalles) */}
+      <Dialog
+        open={openEditDialog}
+        onClose={(_, reason) => {
+          if (reason !== 'backdropClick') setOpenEditDialog(false)
+        }}
+        maxWidth="md"
+        fullWidth
+        sx={{
+          zIndex: (theme) => theme.zIndex.modal + 10
+        }}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {t.editRoutine}
+          </Typography>
+          <IconButton
+            onClick={() => setOpenEditDialog(false)}
+            sx={{
+              color: 'text.secondary',
+              '&:hover': {
+                backgroundColor: 'rgba(0,0,0,0.04)',
+                color: 'text.primary'
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {selectedRoutine && (
+            <RoutineForm
+              routine={selectedRoutine}
+              onSubmit={(data) => handleEditRoutine(selectedRoutine.id, data)}
+              onCancel={() => setOpenEditDialog(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de confirmación para eliminar */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogTitle>{t.confirmDeleteTitle}</DialogTitle>
         <DialogContent>
           <Typography>
-            ¿Estás seguro de que quieres eliminar la rutina "{selectedRoutine?.name}"?
-            Esta acción no se puede deshacer.
+            {t.confirmDeleteMessage.replace('{name}', selectedRoutine?.name || '')}
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>
-            Cancelar
+            {translations[language].common.cancel}
           </Button>
           <Button
             onClick={() => selectedRoutine && handleDeleteRoutine(selectedRoutine.id)}
@@ -869,7 +828,7 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
             {deletingRoutineId === selectedRoutine?.id ? (
               <CircularProgress size={20} />
             ) : (
-              'Eliminar'
+              translations[language].common.delete
             )}
           </Button>
         </DialogActions>
@@ -900,13 +859,13 @@ const RoutineList: React.FC<RoutineListProps> = ({ activeRoutine, routineProgres
           borderBottom: '1px solid',
           borderColor: 'divider'
         }}>
-          Editar nombre de la rutina
+          {t.editRoutineName}
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <TextField
             autoFocus
             fullWidth
-            placeholder="Nombre de la rutina"
+            placeholder={t.nameLabel}
             value={editNameModal.newName}
             onChange={(e) => setEditNameModal(prev => ({ ...prev, newName: e.target.value }))}
             variant="outlined"

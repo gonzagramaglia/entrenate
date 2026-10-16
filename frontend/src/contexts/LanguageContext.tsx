@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 
 type Language = 'es' | 'en'
 
@@ -9,17 +9,43 @@ type LanguageContextType = {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
+function isEnglishPath(path: string): boolean {
+    return path === '/en' || path.endsWith('/en') || path.endsWith('/en/') || path.includes('/en/')
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
-    const [language, setLanguage] = useState<Language>('es')
+    const [language, setLanguageState] = useState<Language>(() => {
+        if (typeof window !== 'undefined') {
+            return isEnglishPath(window.location.pathname) ? 'en' : 'es'
+        }
+        return 'es'
+    })
+
+    const setLanguage = useCallback((lang: Language) => {
+        setLanguageState(lang)
+        if (typeof window !== 'undefined') {
+            const currentPath = window.location.pathname
+            const isEn = isEnglishPath(currentPath)
+            const basePath = currentPath.startsWith('/entrenate') ? '/entrenate' : ''
+            
+            if (lang === 'en' && !isEn) {
+                const target = `${basePath}/en`
+                window.history.pushState(null, '', target + window.location.search + window.location.hash)
+            } else if (lang === 'es' && isEn) {
+                const target = basePath ? `${basePath}/` : '/'
+                window.history.pushState(null, '', target + window.location.search + window.location.hash)
+            }
+        }
+    }, [])
 
     useEffect(() => {
-        // Detectar idioma desde la URL
-        const path = window.location.pathname
-        if (path.startsWith('/en')) {
-            setLanguage('en')
-        } else {
-            setLanguage('es')
+        const handlePopState = () => {
+            const isEn = isEnglishPath(window.location.pathname)
+            setLanguageState(isEn ? 'en' : 'es')
         }
+
+        window.addEventListener('popstate', handlePopState)
+        return () => window.removeEventListener('popstate', handlePopState)
     }, [])
 
     return (

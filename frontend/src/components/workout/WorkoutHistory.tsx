@@ -10,11 +10,11 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Badge
+  Badge,
+  Tooltip
 } from '@mui/material'
 import {
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
+  SwapVert as SwapVertIcon,
   Close as CloseIcon
 } from '@mui/icons-material'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
@@ -24,11 +24,10 @@ import { PickersDay } from '@mui/x-date-pickers/PickersDay'
 import { es, enUS } from 'date-fns/locale'
 import { apiClient } from '../../lib/api'
 import { useLanguage } from '../../contexts/LanguageContext'
-import { useAuth } from '../../contexts/AuthContext'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 import { normalizeDate, getDateString, formatDate as formatDateUtil } from '../../lib/dateUtils'
 import { getSportEmoji, cleanExerciseName } from '../../lib/exerciseUtils'
-import { getGuestMockData } from '../../lib/guestMockData'
 import WorkoutDayCard from './WorkoutDayCard'
 import WorkoutHistoryDialogs from './WorkoutHistoryDialogs'
 import type { Workout, WorkoutDay, ExerciseGroup, WorkoutDayWithExercises } from '../../types/workout'
@@ -77,7 +76,6 @@ function ServerDay(props: any) {
 
 export default function WorkoutHistory() {
   const { language } = useLanguage()
-  const { isGuest } = useAuth()
   const [workoutDays, setWorkoutDays] = useState<WorkoutDay[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,6 +84,7 @@ export default function WorkoutHistory() {
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ show: boolean; workoutId: number | null }>({ show: false, workoutId: null })
+  const [deleteDayConfirmation, setDeleteDayConfirmation] = useState<{ show: boolean; day: WorkoutDayWithExercises | null }>({ show: false, day: null })
   const [loadingWorkoutId, setLoadingWorkoutId] = useState<number | null>(null)
   const [exerciseModal, setExerciseModal] = useState<{ show: boolean; exerciseGroup: ExerciseGroup | null; workoutDay: WorkoutDay | null }>({ show: false, exerciseGroup: null, workoutDay: null })
   const [editObservationModal, setEditObservationModal] = useState<{
@@ -214,10 +213,14 @@ export default function WorkoutHistory() {
           dateMatch = formattedDate.includes(searchLower);
         }
 
-        const workoutNameMatch = day.workoutDay.name?.toLowerCase().includes(searchLower) || false;
+        const workoutNameMatch =
+          day.workoutDay.name?.toLowerCase().includes(searchLower) ||
+          getExerciseDisplayName(day.workoutDay.name, language as any).toLowerCase().includes(searchLower) ||
+          false;
 
         const exerciseMatch = day.exerciseGroups.some(group =>
-          group.exerciseName.toLowerCase().includes(searchLower)
+          group.exerciseName.toLowerCase().includes(searchLower) ||
+          getExerciseDisplayName(group.exerciseName, language as any).toLowerCase().includes(searchLower)
         );
 
         const observationMatch = day.exerciseGroups.some(group =>
@@ -246,21 +249,13 @@ export default function WorkoutHistory() {
     });
 
     return sorted;
-  }, [workoutDaysWithExercises, searchTerm, sortOrder, isCalendarSearch]);
+  }, [workoutDaysWithExercises, searchTerm, sortOrder, isCalendarSearch, language]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      if (isGuest) {
-        const { workoutDays: mockDays, workouts: mockWorkouts } = getGuestMockData(language);
-        setWorkoutDays(mockDays);
-        setWorkouts(mockWorkouts);
-        setLoading(false);
-        return;
-      }
-
       const [workoutDaysData, workoutsData] = await Promise.all([
         apiClient.getWorkoutDays(),
         apiClient.getWorkouts()
@@ -274,11 +269,23 @@ export default function WorkoutHistory() {
     } finally {
       setLoading(false);
     }
-  }, [isGuest, language]);
+  }, [language]);
 
-  // Cargar datos
+  // Cargar datos y escuchar eventos de nuevos entrenamientos
   useEffect(() => {
     loadData();
+
+    const handleRefresh = () => {
+      loadData();
+    };
+
+    window.addEventListener('workoutCreated', handleRefresh);
+    window.addEventListener('socialFeedRefresh', handleRefresh);
+
+    return () => {
+      window.removeEventListener('workoutCreated', handleRefresh);
+      window.removeEventListener('socialFeedRefresh', handleRefresh);
+    };
   }, [loadData]);
 
   // Funciones de UI
@@ -323,6 +330,36 @@ export default function WorkoutHistory() {
   const handleConfirmDelete = () => {
     if (deleteConfirmation.workoutId) {
       handleDeleteWorkout(deleteConfirmation.workoutId)
+    }
+  }
+
+  const handleDeleteDay = (day: WorkoutDayWithExercises) => {
+    setDeleteDayConfirmation({ show: true, day })
+  }
+
+  const handleConfirmDeleteDay = async () => {
+    if (!deleteDayConfirmation.day) return
+    const day = deleteDayConfirmation.day
+    const workoutIds = day.exerciseGroups.flatMap(g => g.workouts.map(w => w.id))
+    try {
+      setLoadingWorkoutId(day.workoutDay.id)
+      await apiClient.deleteDayWorkouts(day.workoutDay.id, workoutIds)
+      setSuccessMessage(language === 'es' ? 'Entrenamiento del día eliminado exitosamente' : 'Day workout deleted successfully')
+
+      setWorkouts(prev => prev.filter(w => !workoutIds.includes(w.id) && w.workout_day_id !== day.workoutDay.id))
+      setWorkoutDays(prev => prev.filter(d => d.id !== day.workoutDay.id))
+
+      setExpandedDays(prev => {
+        const next = new Set(prev)
+        next.delete(day.workoutDay.date)
+        return next
+      })
+    } catch (error) {
+      console.error('❌ Error deleting day workout:', error)
+      setError(language === 'es' ? 'Error al eliminar el entrenamiento del día. Inténtalo de nuevo.' : 'Error deleting day workout. Please try again.')
+    } finally {
+      setLoadingWorkoutId(null)
+      setDeleteDayConfirmation({ show: false, day: null })
     }
   }
 
@@ -618,69 +655,86 @@ export default function WorkoutHistory() {
             />
             <Box sx={{ display: 'flex', gap: 1 }}>
               {searchTerm ? (
-                <IconButton 
-                  onClick={() => setSearchTerm('')}
-                  sx={{ 
-                    color: 'white',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
+                <Tooltip title={language === 'es' ? 'Limpiar búsqueda' : 'Clear search'}>
+                  <IconButton 
+                    onClick={() => setSearchTerm('')}
+                    sx={{ 
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+                    }}
+                  >
+                    <CloseIcon />
+                  </IconButton>
+                </Tooltip>
               ) : (
-                <IconButton 
-                  onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-                  sx={{ 
-                    color: 'white',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
-                  }}
-                >
-                  {sortOrder === 'desc' ? <ExpandMoreIcon /> : <ExpandLessIcon />}
-                </IconButton>
+                workoutDaysWithExercises.length > 1 && (
+                  <Tooltip 
+                    title={
+                      sortOrder === 'desc' 
+                        ? (language === 'es' ? 'Orden: Más recientes primero (toca para invertir)' : 'Order: Newest first (tap to reverse)')
+                        : (language === 'es' ? 'Orden: Más antiguos primero (toca para invertir)' : 'Order: Oldest first (tap to reverse)')
+                    }
+                  >
+                    <IconButton 
+                      onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                      sx={{ 
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+                      }}
+                    >
+                      <SwapVertIcon />
+                    </IconButton>
+                  </Tooltip>
+                )
               )}
             </Box>
           </Box>
         </Box>
 
         {/* Cards de entrenamientos */}
-        <Box ref={resultsRef} sx={{ mx: 0.5, pb: filteredWorkoutDays.length > 0 ? 40 : 0 }}>
-          {filteredWorkoutDays.map((day) => (
-            <WorkoutDayCard
-              key={day.workoutDay.date}
-              day={day}
-              expandedDays={expandedDays}
-              toggleDayExpansion={toggleDayExpansion}
-              formatDate={formatDate}
-              cleanExerciseName={cleanExerciseName}
-              getSportEmoji={getSportEmoji}
-              loadingWorkoutId={loadingWorkoutId}
-              language={language}
-              onExerciseClick={(group, workoutDay) => setExerciseModal({ show: true, exerciseGroup: group, workoutDay })}
-              onEditSessionName={handleEditSessionName}
-            />
-          ))}
-        </Box>
-
-        {filteredWorkoutDays.length === 0 && (
-          <Box sx={{ 
-            p: 6, 
-            textAlign: 'center', 
-            mx: 0.5,
-            mb: 15,
-            bgcolor: 'rgba(0,0,0,0.02)', 
-            borderRadius: 4,
-            border: '2px dashed',
-            borderColor: 'divider'
-          }}>
-            <Typography variant="h6" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
-              {language === 'es' ? 'Sin resultados' : 'No results'}
+        {filteredWorkoutDays.length > 0 ? (
+          <Box ref={resultsRef} sx={{ mx: 0.5, pb: 40 }}>
+            {filteredWorkoutDays.map((day) => (
+              <WorkoutDayCard
+                key={day.workoutDay.date}
+                day={day}
+                expandedDays={expandedDays}
+                toggleDayExpansion={toggleDayExpansion}
+                formatDate={formatDate}
+                cleanExerciseName={cleanExerciseName}
+                getSportEmoji={getSportEmoji}
+                loadingWorkoutId={loadingWorkoutId}
+                language={language}
+                onExerciseClick={(group, workoutDay) => setExerciseModal({ show: true, exerciseGroup: group, workoutDay })}
+                onEditSessionName={handleEditSessionName}
+                onDeleteDay={handleDeleteDay}
+              />
+            ))}
+          </Box>
+        ) : (
+          <Box 
+            ref={resultsRef}
+            sx={{ 
+              p: { xs: 2.5, sm: 3 }, 
+              textAlign: 'center', 
+              mx: 0.5,
+              mt: -1.5,
+              mb: 8,
+              bgcolor: 'rgba(0,0,0,0.02)', 
+              borderRadius: 4,
+              border: '2px dashed',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600 }}>
+              {language === 'es' ? 'Aún no hay resultados' : 'No results yet'}
             </Typography>
             <Typography color="text.secondary" sx={{ opacity: 0.8 }}>
               {searchTerm 
                 ? (language === 'es' ? 'No se encontraron entrenamientos que coincidan con tu búsqueda.' : 'We couldn\'t find any workouts matching your search.')
-                : (language === 'es' ? 'Aún no tienes entrenamientos registrados.' : 'You don\'t have any workouts recorded yet.')
+                : (language === 'es' ? '¡Registra hoy tu primer entrenamiento y dale seguimiento a tu progreso!' : 'Record your first workout today to track your progress!')
               }
             </Typography>
             {searchTerm && (
@@ -759,6 +813,9 @@ export default function WorkoutHistory() {
           setDeleteConfirmation={setDeleteConfirmation}
           handleConfirmDelete={handleConfirmDelete}
           setExpandedDays={setExpandedDays}
+          deleteDayConfirmation={deleteDayConfirmation}
+          setDeleteDayConfirmation={setDeleteDayConfirmation}
+          handleConfirmDeleteDay={handleConfirmDeleteDay}
           editObservationModal={editObservationModal}
           setEditObservationModal={setEditObservationModal}
           handleSaveObservation={handleSaveObservation}

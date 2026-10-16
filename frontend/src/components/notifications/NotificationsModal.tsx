@@ -28,6 +28,8 @@ import { apiClient } from '../../lib/api'
 import { useUserSettings } from '../../contexts/UserSettingsContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 
 type NotificationType = 'kudos' | 'announcement' | 'workout_created' | 'welcome'
 
@@ -64,6 +66,7 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
   const { settings } = useUserSettings()
   const { isGuest } = useAuth()
   const { language } = useLanguage()
+  const tn = translations[language].notifications
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -78,10 +81,8 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
         const mockNotification: Notification = {
           id: 999999, // Use a number as per type definition
           type: 'welcome',
-          title: language === 'es' ? '¡Bienvenido al modo invitado!' : 'Welcome to guest mode!',
-          message: language === 'es' 
-            ? 'Explora todas las funcionalidades de la app. Para registrar tus propios entrenamientos y guardar tu progreso, inicia sesión con Google.' 
-            : 'Explore all the app features. To register your own workouts and save your progress, please sign in with Google.',
+          title: tn.welcomeTitle,
+          message: tn.welcomeMessage,
           created_at: new Date().toISOString(),
           is_read: isRead,
           priority: 'high'
@@ -105,11 +106,11 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
       setNotifications(filteredNotifications)
     } catch (error) {
       console.error('Error cargando notificaciones:', error)
-      setError('Error al cargar las notificaciones')
+      setError(tn.errorLoading)
     } finally {
       setIsLoading(false)
     }
-  }, [isGuest, language, settings.showOwnWorkoutsInSocial])
+  }, [isGuest, tn.welcomeTitle, tn.welcomeMessage, tn.errorLoading, settings.showOwnWorkoutsInSocial])
 
   useEffect(() => {
     if (open) {
@@ -146,7 +147,7 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
       }
     } catch (error) {
       console.error('Error marcando notificación como leída:', error)
-      setError('Error al marcar la notificación como leída')
+      setError(tn.errorMarkingRead)
     }
   }
 
@@ -157,28 +158,28 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
     
     if (diffInMinutes < 1) {
-      return 'Hace un momento'
+      return tn.justNow
     } else if (diffInMinutes === 1) {
-      return 'Hace 1 minuto'
+      return tn.oneMinuteAgo
     } else if (diffInMinutes < 60) {
-      return `Hace ${diffInMinutes} minutos`
+      return tn.minutesAgo.replace('{count}', diffInMinutes.toString())
     } else if (diffInHours === 1) {
-      return 'Hace 1 hora'
+      return tn.oneHourAgo
     } else if (diffInHours < 24) {
-      return `Hace ${diffInHours} horas`
+      return tn.hoursAgo.replace('{count}', diffInHours.toString())
     } else {
       const diffInDays = Math.floor(diffInHours / 24)
       if (diffInDays === 1) {
-        return 'Ayer'
+        return tn.yesterday
       } else {
-        return `Hace ${diffInDays} días`
+        return tn.daysAgo.replace('{count}', diffInDays.toString())
       }
     }
   }
 
   const formatWorkoutDate = (dateString: string): string => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-ES', { 
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', { 
       weekday: 'long',
       day: 'numeric', 
       month: 'long'
@@ -225,7 +226,7 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Notifications sx={{ color: 'grey.600' }} />
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            Notificaciones
+            {tn.title}
           </Typography>
           {unreadCount > 0 && (
             <Chip 
@@ -274,10 +275,10 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
           >
             <Notifications sx={{ fontSize: 60, color: 'grey.400', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              No hay notificaciones
+              {tn.noNotifications}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Te notificaremos cuando haya novedades importantes
+              {tn.emptySubtitle}
             </Typography>
           </Paper>
         ) : (
@@ -344,7 +345,7 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
                       mt: 2
                     }}>
                       <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-                        Entrenamiento: {notification.workout.exercise_name}
+                        {tn.workout} {getExerciseDisplayName(notification.workout.exercise_name, language)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
                         {formatWorkoutDate(notification.workout.date)}
@@ -352,7 +353,7 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
                       
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                         <Typography variant="body2" color="text.secondary">
-                          Kudos de:
+                          {tn.kudosFrom}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           {notification.from_users.map((user) => (
@@ -375,7 +376,7 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <ThumbUp sx={{ color: 'success.main', fontSize: 16 }} />
                         <Typography variant="caption" color="text.secondary">
-                          {notification.from_users.length} kudos
+                          {tn.kudosCount.replace('{count}', notification.from_users.length.toString())}
                         </Typography>
                       </Box>
                     </Box>
@@ -407,7 +408,7 @@ export default function NotificationsModal({ open, onClose, onMarkAsRead }: Noti
                           }
                         }}
                       >
-                        Marcar como leída
+                        {tn.markAsRead}
                       </Button>
                     </Box>
                   )}

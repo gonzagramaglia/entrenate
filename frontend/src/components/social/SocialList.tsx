@@ -7,8 +7,7 @@ import {
   Avatar,
   CircularProgress,
   Alert,
-  Stack,
-  Button
+  Stack
 } from '@mui/material'
 
 import { apiClient } from '../../lib/api'
@@ -42,7 +41,7 @@ type SocialExercise = {
 export default function SocialList() {
   const { language } = useLanguage()
   const t = translations[language].social
-  const { isGuest, signInWithGoogle } = useAuth()
+  const { isGuest } = useAuth()
   const { setOnSocialSettingsChange } = useUserSettings()
   const [socialWorkouts, setSocialWorkouts] = useState<SocialWorkout[]>([])
   const [loading, setLoading] = useState(true)
@@ -550,23 +549,11 @@ export default function SocialList() {
                 border: '1px dashed', 
                 borderColor: 'primary.main' 
               }}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                   {language === 'es' 
-                    ? 'Estos son datos de prueba para el modo invitado. Para ver actividad real de otros usuarios, inicia sesión.'
-                    : 'This is mock data for guest mode. To see real activity from other users, please sign in.'}
+                    ? 'Estos son datos de prueba para el modo invitado.'
+                    : 'This is mock data for guest mode.'}
                 </Typography>
-                <Button 
-                  variant="contained" 
-                  onClick={signInWithGoogle}
-                  sx={{ 
-                    borderRadius: '20px', 
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    px: 3
-                  }}
-                >
-                  {language === 'es' ? 'Iniciar sesión con Google' : 'Sign in with Google'}
-                </Button>
               </Box>
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>

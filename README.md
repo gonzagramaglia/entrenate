@@ -1,8 +1,8 @@
-# 🚀 Entrenate.net
+# 💪 Entrenate
 
 **A comprehensive, multi-language workout logging and tracking application designed for a premium training experience.**
 
-"Entrenate.net" is your digital partner for tracking progress and managing routines. Built with performance and aesthetics in mind, it provides a professional trial through Guest Mode and full interactive features for registered users.
+"Entrenate" is your digital partner for tracking progress and managing routines. Built with performance and aesthetics in mind, it provides a professional trial through Guest Mode and full interactive features for registered users.
 
 ---
 
@@ -22,7 +22,7 @@
 - **🛠️ Admin Panel**: Robust management suite for administrators to control exercises, user roles, and broadcast notifications.
 - **🏋️ Exercise Library**: Comprehensive library with advanced filtering and responsive grid layouts.
 - **🔄 Custom Routines**: Create, edit, and follow personalized workout routines.
-- **🔐 Secure Auth**: Seamless Google OAuth authentication powered by Supabase.
+- **🔐 Secure Auth**: Seamless Google OAuth authentication powered by Supabase *(disabled due to maintenance costs)*.
 - **⚡ High Performance**: Fast and responsive architecture with a **Go (Fiber)** backend and **React (Vite)** frontend.
 - **🎨 Premium UI/UX**: Modern design with glassmorphism, responsive grids, and curated color palettes.
 
@@ -57,12 +57,6 @@
 ## 📄 License
 
 This project is created for personal use and is shared as-is. Feel free to explore and modify it!
-
----
-
-## ⭐ Support the Project
-
-If **Entrenate.net** has helped you in your fitness journey, please consider giving this repository a **Star** as a token of appreciation. It helps the project reach more users! 🚀 
 
 ---
 

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, Typography, Box, IconButton } from '@mui/materia
 import { PlayArrow as PlayArrowIcon } from '@mui/icons-material'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 
 type RestModalProps = {
   open: boolean
@@ -83,7 +84,7 @@ export default function RestModal({
         </Typography>
 
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-          {lastRegisteredExercise}
+          {getExerciseDisplayName(lastRegisteredExercise, language)}
         </Typography>
 
         <Box sx={{

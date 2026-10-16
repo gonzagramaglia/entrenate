@@ -1,32 +1,14 @@
 import { useState } from 'react'
 import { Button, Typography, Alert, Box, Backdrop, CircularProgress } from '@mui/material'
-import { Google as GoogleIcon } from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
 
 export default function LoginComponent() {
-  const [error, setError] = useState('')
-  const { signInWithGoogle, isSigningIn, enterAsGuest } = useAuth()
+  const [error] = useState('')
+  const { isSigningIn, enterAsGuest } = useAuth()
   const { language } = useLanguage()
   const t = translations[language].login
-
-
-
-  const handleGoogleSignIn = async () => {
-    setError('')
-
-    try {
-      const { error } = await signInWithGoogle()
-      if (error) {
-        setError(t.errorGoogle)
-        console.error('Google sign in error:', error)
-      }
-    } catch (error) {
-      setError(t.errorUnexpected)
-      console.error('Unexpected error:', error)
-    }
-  }
 
   return (
     <Box sx={{
@@ -80,21 +62,13 @@ export default function LoginComponent() {
           overflow: 'hidden'
         }}>
           <Box
-            component="a"
-            href={`https://mas.moovimiento.com${language === 'en' ? '/en' : ''}`}
-            target="_blank"
-            rel="noopener noreferrer"
             sx={{
-              display: 'block',
-              transition: 'transform 0.2s ease-in-out',
-              '&:hover': {
-                transform: 'scale(1.05)',
-              }
+              display: 'block'
             }}
           >
             <img
-              src="/entrenate-emoji.png"
-              alt="Entrenate.net"
+              src={`${import.meta.env.BASE_URL}entrenate-emoji.png`}
+              alt="Entrenate"
               style={{
                 height: '240px',
                 width: 'auto',
@@ -107,58 +81,50 @@ export default function LoginComponent() {
         </Box>
 
         <Typography variant="h4" sx={{ fontWeight: 800, textAlign: 'center', mb: 1.5, color: '#333', letterSpacing: '-0.5px', fontSize: '2.3rem' }}>
-          Entrenate.net
+          Entrenate
         </Typography>
 
-        {/* Google OAuth Login */}
+        {/* Botón principal: Ingresa en Modo Invitado */}
         <Button
-          onClick={handleGoogleSignIn}
-          disabled={isSigningIn}
-          variant="outlined"
-          startIcon={<GoogleIcon />}
+          onClick={enterAsGuest}
+          variant="contained"
           sx={{
-            width: '82%',
+            width: '85%',
             mx: 'auto',
             display: 'flex',
-            py: 1.5,
+            mt: 1,
+            py: 1.4,
             borderRadius: 3,
-            borderColor: '#4285f4',
-            color: '#4285f4',
+            backgroundColor: '#ffffff',
+            color: '#1a1a1a',
+            border: '1.5px solid #e0e0e0',
             textTransform: 'none',
             fontSize: '0.95rem',
-            fontWeight: 'bold',
+            fontWeight: 700,
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+            transition: 'all 0.2s ease-in-out',
             '&:hover': {
-              borderColor: '#357ae8',
-              backgroundColor: 'rgba(66, 133, 244, 0.04)'
-            },
-            // En pantallas grandes, usar color azul
-            '@media (min-width: 768px)': {
-              borderColor: '#1976d2',
-              color: '#1976d2',
-              '&:hover': {
-                borderColor: '#1565c0',
-                backgroundColor: 'rgba(25, 118, 210, 0.04)'
-              }
+              backgroundColor: '#f8f9fa',
+              borderColor: '#cccccc',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)'
             }
           }}
         >
-          {isSigningIn ? t.signingIn : t.continueWithGoogle}
+          {language === 'es' ? 'Ingresa en Modo Invitado' : 'Continue as Guest'}
         </Button>
 
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Box sx={{ mt: 1.5, textAlign: 'center' }}>
           <Typography
-            variant="body2"
-            onClick={enterAsGuest}
+            variant="caption"
             sx={{
               color: 'text.secondary',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              '&:hover': {
-                color: 'primary.main'
-              }
+              display: 'block',
+              fontWeight: 500
             }}
           >
-            {language === 'es' ? 'Modo invitado' : 'Guest mode'}
+            {language === 'es'
+              ? 'App disponible exclusivamente en Modo Invitado'
+              : 'App available exclusively in Guest Mode'}
           </Typography>
         </Box>
 

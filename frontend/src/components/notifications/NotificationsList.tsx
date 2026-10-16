@@ -22,6 +22,7 @@ import { apiClient } from '../../lib/api'
 import { useUserSettings } from '../../contexts/UserSettingsContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 
 type NotificationType = 'general' | 'kudos' | 'announcement' | 'welcome'
 
@@ -65,8 +66,8 @@ export default function NotificationsList() {
           type: 'welcome',
           title: language === 'es' ? '¡Bienvenido al modo invitado!' : 'Welcome to guest mode!',
           message: language === 'es' 
-            ? 'Explora todas las funcionalidades de la app. Para registrar tus propios entrenamientos y guardar tu progreso, inicia sesión con Google.' 
-            : 'Explore all the app features. To register your own workouts and save your progress, please sign in with Google.',
+            ? 'Explora todas las funcionalidades de la aplicación en modo invitado.' 
+            : 'Explore all the app features in guest mode.',
           created_at: new Date().toISOString(),
           read: false,
           priority: 'high'
@@ -359,7 +360,7 @@ export default function NotificationsList() {
                     </Typography>
                     {notification.workout && (
                       <Typography variant="caption" color="text.secondary">
-                        Ejercicio: {notification.workout.exercise_name}
+                        {language === 'es' ? 'Ejercicio:' : 'Exercise:'} {getExerciseDisplayName(notification.workout.exercise_name, language)}
                       </Typography>
                     )}
                   </Box>

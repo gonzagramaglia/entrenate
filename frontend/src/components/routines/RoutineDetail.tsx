@@ -24,7 +24,7 @@ import type { RoutineWithExercises } from '../../types/routine'
 import { useUserSettings } from '../../contexts/UserSettingsContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
-import { useAuth } from '../../contexts/AuthContext'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 
 interface RoutineDetailProps {
   routine: RoutineWithExercises
@@ -51,8 +51,7 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
 }) => {
   const { language } = useLanguage()
   const t = translations[language]
-  const { isGuest, signInWithGoogle } = useAuth()
-  const { toggleExerciseCompleted, getCompletedExercisesForRoutine, getRoutineProgress, resetCompletedExercisesForDate } = useUserSettings()
+  const { toggleExerciseAllSets, getCompletedExercisesForRoutine, getRoutineProgress, resetCompletedExercisesForDate } = useUserSettings()
 
   // Obtener fecha actual y ejercicios completados
   const today = new Date().toISOString().split('T')[0]
@@ -67,21 +66,21 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
-
-
   // Funciones para calcular el progreso real basado en checkboxes
   const getCompletedExercises = () => {
     if (!routine.exercises || routine.exercises.length === 0) return 0
     return routine.exercises.filter(exercise => {
-      const completedSets = completedExercisesForRoutine[exercise.exercise_id] || []
-      return completedSets.length === exercise.sets
+      const exId = exercise.exercise_id || exercise.id
+      const completedSets = completedExercisesForRoutine[exId] || []
+      return completedSets.length >= exercise.sets
     }).length
   }
 
   const getCompletedSets = () => {
     if (!routine.exercises || routine.exercises.length === 0) return 0
     return routine.exercises.reduce((total, exercise) => {
-      const completedSets = completedExercisesForRoutine[exercise.exercise_id] || []
+      const exId = exercise.exercise_id || exercise.id
+      const completedSets = completedExercisesForRoutine[exId] || []
       return total + completedSets.length
     }, 0)
   }
@@ -89,7 +88,8 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
   const getCompletedReps = () => {
     if (!routine.exercises || routine.exercises.length === 0) return 0
     return routine.exercises.reduce((total, exercise) => {
-      const completedSets = completedExercisesForRoutine[exercise.exercise_id] || []
+      const exId = exercise.exercise_id || exercise.id
+      const completedSets = completedExercisesForRoutine[exId] || []
       return total + (exercise.reps * completedSets.length)
     }, 0)
   }
@@ -181,10 +181,6 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                       color="error"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (isGuest) {
-                          signInWithGoogle()
-                          return
-                        }
                         onDelete?.()
                       }}
                       sx={{
@@ -204,11 +200,16 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
 
                 <Chip
                   label={`${routine.exercises?.length || 0} ${(routine.exercises?.length || 0) === 1 ? (language === 'es' ? 'ejercicio' : 'exercise') : (language === 'es' ? 'ejercicios' : 'exercises')}`}
+                  onClick={() => {
+                    const el = document.getElementById('routine-exercises-list')
+                    el?.scrollIntoView({ behavior: 'smooth' })
+                  }}
                   sx={{
                     backgroundColor: isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'primary.main'),
                     color: 'white',
                     fontWeight: 700,
-                    mt: 0.5
+                    mt: 0.5,
+                    cursor: 'pointer'
                   }}
                   variant="filled"
                   size="medium"
@@ -222,10 +223,6 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                       }}
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (isGuest) {
-                          signInWithGoogle()
-                          return
-                        }
                         onEdit?.()
                       }}
                     >
@@ -241,6 +238,7 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                       e.stopPropagation()
                       onStart()
                       if (!isActiveRoutine) {
+                        onClose?.()
                         // Navegar al registro con la rutina activa solo si no está activa
                         const navigateEvent = new CustomEvent('navigateToWorkout', {})
                         window.dispatchEvent(navigateEvent)
@@ -300,11 +298,16 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Chip
                 label={`${routine.exercises?.length || 0} ${(routine.exercises?.length || 0) === 1 ? (language === 'es' ? 'ejercicio' : 'exercise') : (language === 'es' ? 'ejercicios' : 'exercises')}`}
+                onClick={() => {
+                  const el = document.getElementById('routine-exercises-list')
+                  el?.scrollIntoView({ behavior: 'smooth' })
+                }}
                 sx={{
                   backgroundColor: isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'primary.main'),
                   color: 'white',
                   fontWeight: 700,
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  cursor: 'pointer'
                 }}
                 variant="filled"
                 size="medium"
@@ -325,10 +328,6 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                     color="error"
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (isGuest) {
-                        signInWithGoogle()
-                        return
-                      }
                       onDelete?.()
                     }}
                     sx={{
@@ -353,10 +352,6 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (isGuest) {
-                        signInWithGoogle()
-                        return
-                      }
                       onEdit?.()
                     }}
                   >
@@ -372,6 +367,7 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                       e.stopPropagation()
                       onStart()
                       if (!isActiveRoutine) {
+                        onClose?.()
                         // Navegar al registro con la rutina activa solo si no está activa
                         const navigateEvent = new CustomEvent('navigateToWorkout', {})
                         window.dispatchEvent(navigateEvent)
@@ -426,14 +422,15 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
 
       {/* Lista de ejercicios */}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box id="routine-exercises-list" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {Array.isArray(routine.exercises) && routine.exercises.length > 0 ? (
           routine.exercises.map((exercise) => {
-            const completedSets = completedExercisesForRoutine[exercise.exercise_id] || []
-            const isCompleted = completedSets.length === exercise.sets
+            const exId = exercise.exercise_id || exercise.id
+            const completedSets = completedExercisesForRoutine[exId] || []
+            const isCompleted = completedSets.length >= exercise.sets
             return (
               <Card
-                key={exercise.id}
+                key={exercise.id || exId}
                 elevation={2}
                 sx={{
                   border: '2px solid',
@@ -450,7 +447,11 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                     transform: isActiveRoutine ? 'translateY(-2px)' : 'none'
                   }
                 }}
-                onClick={() => isActiveRoutine && onExerciseClick?.(exercise)}
+                onClick={() => {
+                  if (isActiveRoutine) {
+                    toggleExerciseAllSets(today, routine.id, exId, exercise.sets || 1, routine)
+                  }
+                }}
               >
                 <CardContent sx={{ p: 3 }}>
                   {/* Header del ejercicio */}
@@ -459,49 +460,39 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                     alignItems: 'flex-start',
                     gap: 2
                   }}>
-                    {/* Checkboxes por serie */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'center' }}>
-                      {Array.from({ length: exercise.sets }, (_, setIndex) => {
-                        const setNumber = setIndex + 1
-                        const completedSets = completedExercisesForRoutine[exercise.exercise_id] || []
-                        const isSetCompleted = completedSets.includes(setNumber)
-
-                        return (
-                          <Checkbox
-                            key={setNumber}
-                            checked={isSetCompleted}
-                            disabled={!isActiveRoutine}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              e.stopPropagation()
-                              if (isActiveRoutine) {
-                                toggleExerciseCompleted(today, routine.id, exercise.exercise_id, setNumber, routine)
-                              }
-                            }}
-                            sx={{
-                              color: isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'success.main'),
-                              '&.Mui-checked': {
-                                color: isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'success.main'),
-                              },
-                              '&.Mui-disabled': {
-                                color: isSetCompleted ? (isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'success.main')) : 'grey.400',
-                              },
-                              p: 0.5
-                            }}
-                          />
-                        )
-                      })}
-                    </Box>
-
-
+                    {/* Checkbox del ejercicio */}
+                    <Checkbox
+                      checked={isCompleted}
+                      disabled={!isActiveRoutine}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation()
+                        if (isActiveRoutine) {
+                          toggleExerciseAllSets(today, routine.id, exId, exercise.sets || 1, routine)
+                        }
+                      }}
+                      sx={{
+                        color: isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'success.main'),
+                        '&.Mui-checked': {
+                          color: isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'success.main'),
+                        },
+                        '&.Mui-disabled': {
+                          color: isCompleted ? (isRoutineComplete ? 'success.main' : (isActiveRoutine ? '#FFB732' : 'success.main')) : 'grey.400',
+                        },
+                        p: 0.5,
+                        mt: -0.5
+                      }}
+                    />
 
                     {/* Información del ejercicio */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'space-between',
                         gap: 2,
-                        flexWrap: 'wrap'
+                        flexWrap: 'wrap',
+                        mb: 1
                       }}>
                         <Typography
                           variant="h6"
@@ -510,8 +501,39 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                             color: isActiveRoutine ? 'text.primary' : 'text.secondary'
                           }}
                         >
-                          {exercise.exercise_name}
+                          {getExerciseDisplayName(exercise.exercise_name, language)}
                         </Typography>
+
+                        {/* Botón para cargar en entrenamiento */}
+                        {isActiveRoutine && onExerciseClick && (
+                          <Tooltip title={language === 'es' ? 'Cargar en formulario de entrenamiento' : 'Load in workout form'}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<PlayIcon />}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onExerciseClick(exercise)
+                              }}
+                              sx={{
+                                textTransform: 'none',
+                                borderRadius: '8px',
+                                borderColor: '#FFB732',
+                                color: '#E65100',
+                                fontWeight: 600,
+                                py: 0.2,
+                                px: 1.2,
+                                '&:hover': {
+                                  borderColor: '#FFA000',
+                                  backgroundColor: 'rgba(255, 183, 50, 0.1)'
+                                }
+                              }}
+                            >
+                              {language === 'es' ? 'Entrenar' : 'Train'}
+                            </Button>
+                          </Tooltip>
+                        )}
+                      </Box>
 
                         {/* Chips de información y notas */}
                         <Box sx={{
@@ -606,8 +628,6 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                         </Box>
                       </Box>
                     </Box>
-                  </Box>
-
 
                 </CardContent>
               </Card>
@@ -795,9 +815,12 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
             variant="contained"
             onClick={() => {
               onStart()
-              // Navegar al registro con la rutina activa
-              const navigateEvent = new CustomEvent('navigateToWorkout', {})
-              window.dispatchEvent(navigateEvent)
+              if (!isActiveRoutine) {
+                onClose?.()
+                // Navegar al registro con la rutina activa
+                const navigateEvent = new CustomEvent('navigateToWorkout', {})
+                window.dispatchEvent(navigateEvent)
+              }
             }}
             startIcon={isActiveRoutine ? <StopIcon /> : <PlayIcon />}
             sx={{

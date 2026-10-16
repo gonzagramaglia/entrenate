@@ -40,7 +40,7 @@ type SettingsModalProps = {
 
 export default function SettingsModal({ open, onClose, exercises = [] }: SettingsModalProps) {
   const { language } = useLanguage()
-  const { isGuest, signInWithGoogle } = useAuth()
+  const { isGuest } = useAuth()
   const t = translations[language]
   const [hasChanges, setHasChanges] = useState(false)
   const [tempSettings, setTempSettings] = useState<{ favoriteExercises: number[] }>({ favoriteExercises: [] })
@@ -460,19 +460,11 @@ export default function SettingsModal({ open, onClose, exercises = [] }: Setting
                 borderColor: 'primary.main',
                 textAlign: 'center'
               }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
                   {language === 'es' 
-                    ? 'Inicia sesión para poder registrar y exportar tus propios entrenamientos.' 
-                    : 'Sign in to be able to register and export your own workouts.'}
+                    ? 'La exportación de entrenamientos está disponible únicamente para cuentas registradas.' 
+                    : 'Workout export is available only for registered accounts.'}
                 </Typography>
-                <Button 
-                  variant="contained" 
-                  size="small" 
-                  onClick={signInWithGoogle}
-                  sx={{ textTransform: 'none', fontWeight: 600 }}
-                >
-                  {language === 'es' ? 'Iniciar sesión con Google' : 'Sign in with Google'}
-                </Button>
               </Box>
             ) : (
               <>

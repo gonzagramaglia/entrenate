@@ -4,6 +4,7 @@ import WorkoutForm from '../workout/WorkoutForm'
 import WorkoutHistory from '../workout/WorkoutHistory'
 import RoutineList from '../routines/RoutineList'
 import ExerciseList from '../exercises/ExerciseList'
+import { MOCK_EXERCISES } from '../../lib/mockExercises'
 
 type AppRouterProps = {
   activeTab: TabType
@@ -79,48 +80,7 @@ export default function AppRouter({
       return (
         <Box sx={{ minHeight: 'calc(100vh - 200px)' }}>
           <ExerciseList
-            exercises={[
-              {
-                id: 1,
-                name: 'Press de Banca',
-                muscle_group: 'Pecho',
-                primary_muscles: ['Pectoral Mayor', 'Tríceps'],
-                secondary_muscles: ['Deltoides Anterior', 'Serrato Anterior'],
-                video_url: 'https://www.youtube.com/watch?v=rT7DgCr-3pg'
-              },
-              {
-                id: 2,
-                name: 'Sentadilla',
-                muscle_group: 'Piernas',
-                primary_muscles: ['Cuádriceps', 'Glúteos'],
-                secondary_muscles: ['Isquiotibiales', 'Gastrocnemio', 'Core'],
-                video_url: 'https://www.youtube.com/watch?v=aclHkVaku9U'
-              },
-              {
-                id: 3,
-                name: 'Peso Muerto',
-                muscle_group: 'Espalda',
-                primary_muscles: ['Erector Espinal', 'Glúteos', 'Isquiotibiales'],
-                secondary_muscles: ['Trapecio', 'Romboides', 'Core'],
-                video_url: 'https://www.youtube.com/watch?v=op9kVnSso6Q'
-              },
-              {
-                id: 4,
-                name: 'Press Militar',
-                muscle_group: 'Hombros',
-                primary_muscles: ['Deltoides Anterior', 'Deltoides Medio'],
-                secondary_muscles: ['Tríceps', 'Trapecio Superior'],
-                video_url: 'https://www.youtube.com/watch?v=2yjwXTZQDDI'
-              },
-              {
-                id: 5,
-                name: 'Curl de Bíceps',
-                muscle_group: 'Brazos',
-                primary_muscles: ['Bíceps Braquial'],
-                secondary_muscles: ['Braquiorradial', 'Braquial'],
-                video_url: 'https://www.youtube.com/watch?v=ykJmrZ5v0Oa'
-              },
-            ]}
+            exercises={exercises && exercises.length > 0 ? exercises : MOCK_EXERCISES}
             onSelectExercise={(exercise) => console.log('Ejercicio seleccionado:', exercise)}
           />
         </Box>
