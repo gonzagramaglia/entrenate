@@ -24,6 +24,7 @@ import type { RoutineWithExercises } from '../../types/routine'
 import { useUserSettings } from '../../contexts/UserSettingsContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 
 interface RoutineDetailProps {
   routine: RoutineWithExercises
@@ -500,7 +501,7 @@ const RoutineDetail: React.FC<RoutineDetailProps> = ({
                             color: isActiveRoutine ? 'text.primary' : 'text.secondary'
                           }}
                         >
-                          {exercise.exercise_name}
+                          {getExerciseDisplayName(exercise.exercise_name, language)}
                         </Typography>
 
                         {/* Botón para cargar en entrenamiento */}

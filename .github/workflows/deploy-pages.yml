@@ -42,8 +42,8 @@ jobs:
       - name: Build frontend
         run: yarn build
 
-      - name: Create 404 fallback for SPA routing
-        run: cp dist/index.html dist/404.html
+      - name: Verify 404 fallback for SPA routing
+        run: test -f dist/404.html || cp dist/index.html dist/404.html
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3

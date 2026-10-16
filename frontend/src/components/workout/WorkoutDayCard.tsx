@@ -74,7 +74,7 @@ export default function WorkoutDayCard({
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'left' }}>
-                  {day.workoutDay.name}
+                  {getExerciseDisplayName(day.workoutDay.name, language as any)}
                 </Typography>
                 <Tooltip title={language === 'es' ? 'Editar nombre' : 'Edit name'}>
                   <IconButton

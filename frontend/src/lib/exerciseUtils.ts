@@ -29,5 +29,6 @@ export const cleanExerciseName = (exerciseName: string): string => {
     .replace(/🤾‍♂️\s*/g, '') // Handball
     .replace(/🏑\s*/g, '') // Hockey
     .replace(/🏊‍♂️\s*/g, '') // Natación
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
     .trim()
 }

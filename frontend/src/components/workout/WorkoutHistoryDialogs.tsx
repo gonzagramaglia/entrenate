@@ -20,6 +20,7 @@ import {
   ExpandLess as ExpandLessIcon
 } from '@mui/icons-material'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 import { formatTimeForSport } from '../../lib/dateUtils'
 import { getSportEmoji } from '../../lib/exerciseUtils'
 import type { ExerciseGroup, WorkoutDay, WorkoutDayWithExercises } from '../../types/workout'
@@ -527,7 +528,7 @@ export default function WorkoutHistoryDialogs({
           alignItems: 'center'
         }}>
           <Typography variant="h6" component="h2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-            {exerciseModal.exerciseGroup?.exerciseName}
+            {getExerciseDisplayName(exerciseModal.exerciseGroup?.exerciseName, language as any)}
           </Typography>
           <IconButton
             onClick={() => setExerciseModal({ show: false, exerciseGroup: null, workoutDay: null })}

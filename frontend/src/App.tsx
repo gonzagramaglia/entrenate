@@ -74,8 +74,9 @@ function AppContentInner() {
 }
 
 function App() {
-  // Detectar si estamos en la ruta /api
-  const isApiTestPage = window.location.pathname === '/api'
+  // Detectar si estamos en la ruta /api (soporta /api y /entrenate/api)
+  const pathname = window.location.pathname
+  const isApiTestPage = pathname === '/api' || pathname.endsWith('/api') || pathname.endsWith('/api/')
 
   if (isApiTestPage) {
     return (

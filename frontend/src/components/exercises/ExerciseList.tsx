@@ -26,6 +26,7 @@ import SearchOffIcon from '@mui/icons-material/SearchOff'
 import FitnessCenter from '@mui/icons-material/FitnessCenter'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName, getMuscleGroupDisplayName } from '../../i18n/exerciseTranslations'
 
 type Exercise = {
   id: number
@@ -68,12 +69,15 @@ export default function ExerciseList({ exercises }: ExerciseListProps) {
   // Filtrar ejercicios
   const filteredExercises = useMemo(() => {
     return exercises.filter(exercise => {
-      const matchesSearch = exercise.name.toLowerCase().includes(searchTerm.toLowerCase())
+      const localizedName = getExerciseDisplayName(exercise, language).toLowerCase()
+      const matchesSearch =
+        exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        localizedName.includes(searchTerm.toLowerCase())
       const matchesMuscleGroup = !muscleGroupFilter || exercise.muscle_group === muscleGroupFilter
 
       return matchesSearch && matchesMuscleGroup
     })
-  }, [exercises, searchTerm, muscleGroupFilter])
+  }, [exercises, searchTerm, muscleGroupFilter, language])
 
   const handleExerciseClick = (exercise: Exercise) => {
     setSelectedExercise(exercise)
@@ -213,7 +217,7 @@ export default function ExerciseList({ exercises }: ExerciseListProps) {
                   <MenuItem value="">{t.choose}</MenuItem>
                   {muscleGroups.map(group => (
                     <MenuItem key={group} value={group}>
-                      {capitalizeFirstLetter(group)}
+                      {capitalizeFirstLetter(getMuscleGroupDisplayName(group, language))}
                     </MenuItem>
                   ))}
                 </Select>
@@ -263,7 +267,7 @@ export default function ExerciseList({ exercises }: ExerciseListProps) {
                         textAlign: 'center'
                       }}
                     >
-                      {exercise.name}
+                      {getExerciseDisplayName(exercise, language)}
                     </Typography>
                     <IconButton
                       size="small"
@@ -280,7 +284,7 @@ export default function ExerciseList({ exercises }: ExerciseListProps) {
                   <Box sx={{ mt: 'auto', textAlign: 'center' }}>
                     <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} sx={{ justifyContent: 'center' }}>
                       <Chip
-                        label={capitalizeFirstLetter(exercise.muscle_group)}
+                        label={capitalizeFirstLetter(getMuscleGroupDisplayName(exercise.muscle_group, language))}
                         size="small"
                         color="primary"
                         sx={{ fontWeight: 'bold' }}
@@ -346,7 +350,7 @@ export default function ExerciseList({ exercises }: ExerciseListProps) {
             }} />
             <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: { xs: 2, sm: 0 } }}>
               <Typography variant="h5" sx={{ fontWeight: 'bold', fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
-                {selectedExercise.name}
+                {getExerciseDisplayName(selectedExercise, language)}
               </Typography>
               <IconButton
                 onClick={handleCloseDialog}

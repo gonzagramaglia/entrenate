@@ -13,6 +13,7 @@ import {
 import { useState } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 import { useUserSettings } from '../../contexts/UserSettingsContext'
 
 type ActiveRoutineBoxProps = {
@@ -136,7 +137,7 @@ export default function ActiveRoutineBox({
                       }}
                       onClick={() => toggleExerciseAllSets(today, activeRoutine.id, exId, exercise.sets || 1, activeRoutine)}
                     >
-                      {isAllCompleted ? '✅ ' : ''}{exercise.exercise_name}
+                      {isAllCompleted ? '✅ ' : ''}{getExerciseDisplayName(exercise.exercise_name, language)}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       {Array.from({ length: exercise.sets || 1 }, (_, setIndex) => {

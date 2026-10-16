@@ -5,9 +5,7 @@ import { GitHub as GithubIcon } from '@mui/icons-material'
 import { useLanguage } from '../../contexts/LanguageContext'
 
 const FloatingLinks: React.FC = () => {
-    const { language } = useLanguage()
-
-
+    const { language, setLanguage } = useLanguage()
 
     const buttonStyles = {
         p: 1.5,
@@ -60,7 +58,13 @@ const FloatingLinks: React.FC = () => {
             >
                 <IconButton
                     component="a"
-                    href={language === 'es' ? '/en' : '/'}
+                    href={language === 'es'
+                        ? (typeof window !== 'undefined' && window.location.pathname.startsWith('/entrenate') ? '/entrenate/en' : '/en')
+                        : (typeof window !== 'undefined' && window.location.pathname.startsWith('/entrenate') ? '/entrenate/' : '/')}
+                    onClick={(e) => {
+                        e.preventDefault()
+                        setLanguage(language === 'es' ? 'en' : 'es')
+                    }}
                     sx={{
                         ...buttonStyles,
                         '&:hover .icon': {

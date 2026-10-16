@@ -25,6 +25,7 @@ import { es, enUS } from 'date-fns/locale'
 import { apiClient } from '../../lib/api'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 import { normalizeDate, getDateString, formatDate as formatDateUtil } from '../../lib/dateUtils'
 import { getSportEmoji, cleanExerciseName } from '../../lib/exerciseUtils'
 import WorkoutDayCard from './WorkoutDayCard'
@@ -212,10 +213,14 @@ export default function WorkoutHistory() {
           dateMatch = formattedDate.includes(searchLower);
         }
 
-        const workoutNameMatch = day.workoutDay.name?.toLowerCase().includes(searchLower) || false;
+        const workoutNameMatch =
+          day.workoutDay.name?.toLowerCase().includes(searchLower) ||
+          getExerciseDisplayName(day.workoutDay.name, language as any).toLowerCase().includes(searchLower) ||
+          false;
 
         const exerciseMatch = day.exerciseGroups.some(group =>
-          group.exerciseName.toLowerCase().includes(searchLower)
+          group.exerciseName.toLowerCase().includes(searchLower) ||
+          getExerciseDisplayName(group.exerciseName, language as any).toLowerCase().includes(searchLower)
         );
 
         const observationMatch = day.exerciseGroups.some(group =>
@@ -244,7 +249,7 @@ export default function WorkoutHistory() {
     });
 
     return sorted;
-  }, [workoutDaysWithExercises, searchTerm, sortOrder, isCalendarSearch]);
+  }, [workoutDaysWithExercises, searchTerm, sortOrder, isCalendarSearch, language]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
