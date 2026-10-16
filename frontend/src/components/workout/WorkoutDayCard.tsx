@@ -3,14 +3,17 @@ import {
   Typography,
   Card,
   CardContent,
-  IconButton
+  IconButton,
+  Tooltip
 } from '@mui/material'
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  ModeEdit as ModeEditIcon
+  ModeEdit as ModeEditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material'
 import type { WorkoutDay, ExerciseGroup, WorkoutDayWithExercises } from '../../types/workout'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 
 interface WorkoutDayCardProps {
   day: WorkoutDayWithExercises
@@ -23,6 +26,7 @@ interface WorkoutDayCardProps {
   language: string
   onExerciseClick: (group: ExerciseGroup, workoutDay: WorkoutDay) => void
   onEditSessionName: (dayId: number, currentName: string) => void
+  onDeleteDay?: (day: WorkoutDayWithExercises) => void
 }
 
 export default function WorkoutDayCard({
@@ -35,7 +39,8 @@ export default function WorkoutDayCard({
   loadingWorkoutId,
   language,
   onExerciseClick,
-  onEditSessionName
+  onEditSessionName,
+  onDeleteDay
 }: WorkoutDayCardProps) {
   return (
     <Box 
@@ -71,26 +76,54 @@ export default function WorkoutDayCard({
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'left' }}>
                   {day.workoutDay.name}
                 </Typography>
-                <ModeEditIcon
-                  sx={{
-                    ml: 1,
-                    fontSize: '1rem',
-                    color: 'text.secondary',
-                    opacity: 0.6,
-                    cursor: 'pointer',
-                    borderRadius: 1,
-                    p: 0.5,
-                    transition: 'background-color 0.2s',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      opacity: 1
-                    }
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditSessionName(day.workoutDay.id, day.workoutDay.name);
-                  }}
-                />
+                <Tooltip title={language === 'es' ? 'Editar nombre' : 'Edit name'}>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditSessionName(day.workoutDay.id, day.workoutDay.name);
+                    }}
+                    sx={{
+                      ml: 0.5,
+                      p: 0.25,
+                      color: 'text.secondary',
+                      opacity: 0.75,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        opacity: 1,
+                        color: 'primary.main'
+                      }
+                    }}
+                  >
+                    <ModeEditIcon sx={{ fontSize: '1.05rem' }} />
+                  </IconButton>
+                </Tooltip>
+                {expandedDays.has(day.workoutDay.date) && onDeleteDay && (
+                  <Tooltip title={language === 'es' ? 'Borrar entrenamiento del día' : 'Delete day workout'}>
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteDay(day);
+                      }}
+                      size="small"
+                      sx={{
+                        ml: 0.25,
+                        p: 0.25,
+                        color: 'error.main',
+                        opacity: 0.75,
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          backgroundColor: 'rgba(211, 47, 47, 0.08)',
+                          opacity: 1,
+                          transform: 'scale(1.08)'
+                        }
+                      }}
+                    >
+                      <DeleteIcon sx={{ fontSize: '1.05rem' }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
               {!expandedDays.has(day.workoutDay.date) && (
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'left', mt: 0.5 }}>
@@ -146,7 +179,7 @@ export default function WorkoutDayCard({
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main', textAlign: 'left', fontSize: '0.88rem' }}>
-                        {cleanExerciseName(group.exerciseName)}
+                        {getExerciseDisplayName(cleanExerciseName(group.exerciseName), language as any)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700, fontSize: '0.9rem' }}>
                         {(group.workouts.every(workout => workout.is_sport) ||

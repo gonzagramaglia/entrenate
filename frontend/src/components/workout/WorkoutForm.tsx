@@ -1,11 +1,11 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useUserSettings } from '../../contexts/UserSettingsContext'
-import { useAuth } from '../../contexts/AuthContext'
 
 
 import { useLanguage } from '../../contexts/LanguageContext'
 import { translations } from '../../i18n/translations'
+import { getExerciseDisplayName } from '../../i18n/exerciseTranslations'
 import {
   Box,
   Button,
@@ -28,6 +28,7 @@ import { useFilteredExercises } from '../../hooks/useFilteredExercises'
 import RestModal from './RestModal'
 import WorkoutDateSelector from './WorkoutDateSelector'
 import type { Routine, RoutineExercise, Exercise } from '../../types/workout'
+import { MOCK_EXERCISES } from '../../lib/mockExercises'
 
 type WorkoutFormProps = {
   exercises: Exercise[]
@@ -60,8 +61,18 @@ export default function WorkoutForm({
     settings
   } = useUserSettings()
 
+  const baseExercises = useMemo(() => {
+    return (exercises && exercises.length > 0) ? exercises : MOCK_EXERCISES
+  }, [exercises])
+
   // Estado para forzar re-render cuando cambien las configuraciones
-  const { filteredExercises, isLoadingExercises } = useFilteredExercises(exercises, settings, userRole, isAdmin)
+  const { filteredExercises } = useFilteredExercises(baseExercises, settings, userRole, isAdmin)
+
+  const displayExercises = useMemo(() => {
+    if (filteredExercises && filteredExercises.length > 0) return filteredExercises
+    const nonSports = baseExercises.filter(ex => !ex.is_sport)
+    return nonSports.length > 0 ? nonSports : baseExercises
+  }, [filteredExercises, baseExercises])
 
   const { register, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm({
     resolver: zodResolver(workoutFormSchema),
@@ -93,7 +104,7 @@ export default function WorkoutForm({
 
   // Detectar si el ejercicio seleccionado es Running (ID: 18) o Bici
   const selectedExerciseId = watch('exercise_id')
-  const selectedExercise = exercises.find(ex => ex.id === selectedExerciseId)
+  const selectedExercise = displayExercises.find(ex => ex.id === selectedExerciseId) || baseExercises.find(ex => ex.id === selectedExerciseId)
 
   const isRunningExercise = selectedExerciseId === 18
   const isBiciExercise = selectedExercise?.name?.toLowerCase().includes('bici') || selectedExercise?.id === 30 || false
@@ -222,20 +233,17 @@ export default function WorkoutForm({
     }
   }
 
-  const { isGuest, signInWithGoogle } = useAuth()
-
   const submit = handleSubmit(async (data: WorkoutFormData) => {
-    if (isGuest) {
-      signInWithGoogle()
-      return
-    }
     const originalObservations = data.observations
     try {
       // Para deportes, validar que el tiempo sea requerido
       if (isSportExercise) {
         if (!data.seconds || data.seconds <= 0) {
-          setMessageInObservations('❌ El tiempo de entrenamiento es obligatorio para deportes')
-          // setValue('observations', '❌ El tiempo de entrenamiento es obligatorio para deportes')
+          setMessageInObservations(
+            language === 'es'
+              ? '❌ El tiempo de entrenamiento es obligatorio para deportes'
+              : '❌ Training time is required for sports'
+          )
           return
         }
         // El valor ya está en segundos desde el onChange del campo
@@ -254,6 +262,7 @@ export default function WorkoutForm({
       }
 
       const exerciseName = selectedExercise ? selectedExercise.name : 'ejercicio'
+      const displayName = getExerciseDisplayName(selectedExercise || exerciseName, language)
 
       // Solo incluir reps si tiene un valor válido (mayor a 0, o 0 para calentamientos)
       if (data.reps !== undefined && data.reps !== null && (data.reps > 0 || isWarmupOrStretching)) {
@@ -271,8 +280,11 @@ export default function WorkoutForm({
       await onSubmit(workoutData)
 
       // Mostrar mensaje de éxito
-      setMessageInObservations(`✅ '${exerciseName}' registrado exitosamente`)
-      // setValue('observations', `✅ '${exerciseName}' registrado exitosamente`)
+      setMessageInObservations(
+        language === 'es'
+          ? `✅ '${displayName}' registrado exitosamente`
+          : `✅ '${displayName}' logged successfully`
+      )
 
       // Disparar evento para actualizar el feed social
       console.log('🔄 Disparando evento de actualización del feed social')
@@ -280,7 +292,7 @@ export default function WorkoutForm({
 
       // Solo abrir el modal de descanso si hay un tiempo de descanso configurado
       if (data.restSeconds && data.restSeconds > 0) {
-        setLastRegisteredExercise(exerciseName)
+        setLastRegisteredExercise(displayName)
         setInitialRestTime(data.restSeconds)
         setShowRestModal(true)
       }
@@ -311,8 +323,12 @@ export default function WorkoutForm({
       console.error('Error al guardar el workout:', error)
       const selectedExercise = exercises.find(ex => ex.id === watch('exercise_id'))
       const exerciseName = selectedExercise ? selectedExercise.name : 'ejercicio'
-      setMessageInObservations(`❌ Error al registrar '${exerciseName}'. Por favor, intenta de nuevo.`)
-      // setValue('observations', `❌ Error al registrar '${exerciseName}'. Por favor, intenta de nuevo.`)
+      const displayName = getExerciseDisplayName(selectedExercise || exerciseName, language)
+      setMessageInObservations(
+        language === 'es'
+          ? `❌ Error al registrar '${displayName}'. Por favor, intenta de nuevo.`
+          : `❌ Error logging '${displayName}'. Please try again.`
+      )
     }
   })
 
@@ -364,7 +380,7 @@ export default function WorkoutForm({
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500 }}>
-              0% completa
+              {language === 'es' ? '0% completa' : '0% complete'}
             </Typography>
             <Typography variant="body2" sx={{ fontWeight: 'bold', cursor: 'pointer', '&:hover': { opacity: 0.8 } }}>
               {t.goToRoutines}
@@ -376,23 +392,25 @@ export default function WorkoutForm({
       <form role="form" onSubmit={submit}>
         <Stack spacing={3}>
           <Autocomplete
-            options={filteredExercises}
+            options={displayExercises}
+            isOptionEqualToValue={(option, value) => option.id === value?.id}
             getOptionLabel={(option) => {
-              let label = option.name
+              let label = getExerciseDisplayName(option, language)
 
               // Agregar emojis a la derecha
-              if (option.name.toLowerCase().includes('running')) label += ' 🏃‍♂️'
-              if (option.name.toLowerCase().includes('bici')) label += ' 🚴'
-              if (option.name.toLowerCase().includes('fútbol')) label += ' ⚽'
-              if (option.name.toLowerCase().includes('básquet')) label += ' 🏀'
-              if (option.name.toLowerCase().includes('pádel')) label += ' 🎾'
-              if (option.name.toLowerCase().includes('voley')) label += ' 🏐'
-              if (option.name.toLowerCase().includes('handball')) label += ' ⚾'
-              if (option.name.toLowerCase().includes('hockey')) label += ' 🏑'
-              if (option.name.toLowerCase().includes('natación')) label += ' 🏊‍♂️'
+              const nameLower = (option.name || '').toLowerCase()
+              if (nameLower.includes('running')) label += ' 🏃‍♂️'
+              if (nameLower.includes('bici')) label += ' 🚴'
+              if (nameLower.includes('fútbol')) label += ' ⚽'
+              if (nameLower.includes('básquet')) label += ' 🏀'
+              if (nameLower.includes('pádel')) label += ' 🎾'
+              if (nameLower.includes('voley')) label += ' 🏐'
+              if (nameLower.includes('handball')) label += ' ⚾'
+              if (nameLower.includes('hockey')) label += ' 🏑'
+              if (nameLower.includes('natación')) label += ' 🏊‍♂️'
               return label
             }}
-            value={filteredExercises.find(ex => ex.id === watch('exercise_id')) || null}
+            value={displayExercises.find(ex => ex.id === watch('exercise_id')) || null}
             onChange={(_, newValue) => {
               setValue('exercise_id', newValue ? newValue.id : undefined)
             }}
@@ -407,8 +425,8 @@ export default function WorkoutForm({
                 {...params}
                 label={t.searchExercise}
                 error={Boolean(errors.exercise_id)}
-                disabled={isLoading || filteredExercises.length === 0}
-                placeholder={filteredExercises.length === 0 ? (translations[language].common.loading) : (language === 'es' ? 'Escribe para buscar ejercicios...' : 'Type to search exercises...')}
+                disabled={isLoading}
+                placeholder={displayExercises.length === 0 ? (translations[language].common.loading) : (language === 'es' ? 'Escribe para buscar ejercicios...' : 'Type to search exercises...')}
                 onClick={() => {
                   if (watch('exercise_id')) {
                     setValue('exercise_id', undefined)
@@ -417,11 +435,31 @@ export default function WorkoutForm({
               />
             )}
             filterOptions={(options, { inputValue }) => {
+              if (!inputValue || !inputValue.trim()) return options
               const searchTerm = inputValue.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
               return options.filter(option => {
-                const optionName = option.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                return optionName.includes(searchTerm)
+                const optionName = (option.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                const localizedName = getExerciseDisplayName(option, language).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                return optionName.includes(searchTerm) || localizedName.includes(searchTerm)
               })
+            }}
+            renderOption={(props, option) => {
+              let label = getExerciseDisplayName(option, language)
+              const nameLower = (option.name || '').toLowerCase()
+              if (nameLower.includes('running')) label += ' 🏃‍♂️'
+              if (nameLower.includes('bici')) label += ' 🚴'
+              if (nameLower.includes('fútbol')) label += ' ⚽'
+              if (nameLower.includes('básquet')) label += ' 🏀'
+              if (nameLower.includes('pádel')) label += ' 🎾'
+              if (nameLower.includes('voley')) label += ' 🏐'
+              if (nameLower.includes('handball')) label += ' ⚾'
+              if (nameLower.includes('hockey')) label += ' 🏑'
+              if (nameLower.includes('natación')) label += ' 🏊‍♂️'
+              return (
+                <li {...props} key={option.id}>
+                  {label}
+                </li>
+              )
             }}
             noOptionsText={t.noExercisesFound}
             loading={isLoading}
@@ -590,7 +628,7 @@ export default function WorkoutForm({
             type="submit"
             variant="contained"
             size="large"
-            disabled={isLoading || isLoadingExercises || !selectedDate}
+            disabled={isLoading || !selectedDate}
             startIcon={<FitnessCenterIcon />}
             sx={{
               py: 1.5,

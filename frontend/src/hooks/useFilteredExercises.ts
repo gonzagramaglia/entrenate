@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-
 import type { Exercise } from '../types/workout'
-
 import type { UserSettings } from '../contexts/UserSettingsContext'
+import { MOCK_EXERCISES } from '../lib/mockExercises'
 
 export function useFilteredExercises(
   exercises: Exercise[],
@@ -10,8 +9,7 @@ export function useFilteredExercises(
   userRole?: string,
   isAdmin?: boolean
 ) {
-  const [isLoadingExercises, setIsLoadingExercises] = useState(true)
-  // Estado para forzar re-render cuando cambien las configuraciones
+  const [isLoadingExercises, setIsLoadingExercises] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   useEffect(() => {
@@ -24,10 +22,7 @@ export function useFilteredExercises(
       setRefreshTrigger(prev => prev + 1)
     }
 
-    // Escuchar cambios desde otras pestañas
     window.addEventListener('storage', handleStorageChange)
-
-    // Escuchar cambios locales usando CustomEvent
     window.addEventListener('admin-exercise-settings-updated', handleStorageChange)
 
     return () => {
@@ -38,33 +33,39 @@ export function useFilteredExercises(
 
   // Filtrar ejercicios favoritos según configuraciones
   const filteredExercises = useMemo(() => {
-    let filtered = exercises
-    // Usar configuraciones de localStorage (admin-exercise-settings es el nuevo estándar para todos)
+    const baseExercises: Exercise[] = (exercises && exercises.length > 0) ? exercises : MOCK_EXERCISES
+    let filtered = baseExercises
+
     try {
       const adminSettings = localStorage.getItem('admin-exercise-settings')
       if (adminSettings) {
         const parsed = JSON.parse(adminSettings)
-        // Si el usuario ha configurado sus favoritos (aunque la lista esté vacía), respetamos su elección
-        if (parsed.hasConfigured) {
-          filtered = filtered.filter(exercise => (parsed.favoriteExercises || []).includes(exercise.id))
-        } else if (parsed.favoriteExercises && parsed.favoriteExercises.length > 0) {
-          // Fallback para versiones anteriores sin hasConfigured
-          filtered = filtered.filter(exercise => parsed.favoriteExercises.includes(exercise.id))
+        if (parsed.hasConfigured && Array.isArray(parsed.favoriteExercises) && parsed.favoriteExercises.length > 0) {
+          const matched = baseExercises.filter(exercise => parsed.favoriteExercises.includes(exercise.id))
+          filtered = matched.length > 0 ? matched : baseExercises.filter(exercise => !exercise.is_sport)
+        } else if (Array.isArray(parsed.favoriteExercises) && parsed.favoriteExercises.length > 0) {
+          const matched = baseExercises.filter(exercise => parsed.favoriteExercises.includes(exercise.id))
+          filtered = matched.length > 0 ? matched : baseExercises.filter(exercise => !exercise.is_sport)
         } else {
-          // Si no ha configurado nada explícitamente, excluir deportes por defecto
-          filtered = exercises.filter(exercise => !exercise.is_sport)
+          filtered = baseExercises.filter(exercise => !exercise.is_sport)
         }
       } else {
-        // Fallback: si no hay settings guardados, intentar usar los del contexto (legacy) o excluir deportes
-        if (settings.hasConfiguredFavorites) {
-          filtered = filtered.filter(exercise => settings.favoriteExercises.includes(exercise.id))
+        if (settings.hasConfiguredFavorites && settings.favoriteExercises.length > 0) {
+          const matched = baseExercises.filter(exercise => settings.favoriteExercises.includes(exercise.id))
+          filtered = matched.length > 0 ? matched : baseExercises.filter(exercise => !exercise.is_sport)
         } else {
-          filtered = exercises.filter(exercise => !exercise.is_sport)
+          filtered = baseExercises.filter(exercise => !exercise.is_sport)
         }
       }
     } catch (error) {
       console.error('Error loading exercise settings:', error)
-      filtered = exercises.filter(exercise => !exercise.is_sport)
+      filtered = baseExercises.filter(exercise => !exercise.is_sport)
+    }
+
+    // Asegurar que nunca retorne un array vacío
+    if (!filtered || filtered.length === 0) {
+      const nonSports = baseExercises.filter(exercise => !exercise.is_sport)
+      return nonSports.length > 0 ? nonSports : baseExercises
     }
 
     return filtered

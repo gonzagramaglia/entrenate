@@ -32,7 +32,7 @@ export default function ActiveRoutineBox({
 }: ActiveRoutineBoxProps) {
   const { language } = useLanguage()
   const t = translations[language].workout
-  const { toggleExerciseCompleted, getCompletedExercisesForRoutine, getRoutineProgress } = useUserSettings()
+  const { toggleExerciseCompleted, toggleExerciseAllSets, getCompletedExercisesForRoutine, getRoutineProgress } = useUserSettings()
 
   const [showRoutineExercises, setShowRoutineExercises] = useState(false)
 
@@ -113,19 +113,33 @@ export default function ActiveRoutineBox({
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {activeRoutine.exercises.map((exercise: any, index: number) => {
-              const completedSets = completedExercises[exercise.exercise_id] || []
+              const exId = exercise.exercise_id || exercise.id
+              const completedSets = completedExercises[exId] || []
+              const isAllCompleted = completedSets.length >= (exercise.sets || 1)
 
               return (
                 <Box
-                  key={`${exercise.exercise_id}-${index}`}
+                  key={`${exId}-${index}`}
                   sx={{ p: 1.5, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 1, transition: 'all 0.2s ease' }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'white', flex: 1, textAlign: 'left', pl: 2 }}>
-                      {exercise.exercise_name}
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        color: 'white',
+                        flex: 1,
+                        textAlign: 'left',
+                        pl: 2,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 0.85 }
+                      }}
+                      onClick={() => toggleExerciseAllSets(today, activeRoutine.id, exId, exercise.sets || 1, activeRoutine)}
+                    >
+                      {isAllCompleted ? '✅ ' : ''}{exercise.exercise_name}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      {Array.from({ length: exercise.sets }, (_, setIndex) => {
+                      {Array.from({ length: exercise.sets || 1 }, (_, setIndex) => {
                         const setNumber = setIndex + 1
                         const isCompleted = completedSets.includes(setNumber)
 
@@ -143,7 +157,7 @@ export default function ActiveRoutineBox({
                             }}
                             onClick={(e) => {
                               e.stopPropagation()
-                              toggleExerciseCompleted(today, activeRoutine.id, exercise.exercise_id, setNumber, activeRoutine)
+                              toggleExerciseCompleted(today, activeRoutine.id, exId, setNumber, activeRoutine)
                             }}
                           >
                             {isCompleted && (

@@ -1,6 +1,6 @@
-# 🚀 Deployment Guide - Entrenate.net
+# 🚀 Deployment Guide - Entrenate
 
-This guide will help you deploy both the frontend and backend to production.
+This guide will help you deploy the frontend and backend to production.
 
 ## 📋 Prerequisites
 
@@ -49,7 +49,18 @@ CORS_ALLOWED_ORIGINS=http://localhost:3210,http://localhost:5173,https://entrena
 
 ---
 
-## 🌐 Frontend Deployment (Vercel)
+## 🌐 Frontend Deployment (GitHub Pages)
+
+### 1. Activar GitHub Pages en el repositorio
+- Ir a tu repositorio en GitHub → **Settings** → **Pages**
+- En **Build and deployment** → **Source**, seleccionar **GitHub Actions**.
+
+### 2. Flujo de despliegue automático
+- Al hacer push a la rama `main`, el workflow `.github/workflows/deploy-pages.yml` compilará el frontend y lo publicará automáticamente.
+
+---
+
+## 🌐 Frontend Deployment (Vercel - Alternativa)
 
 ### 1. Create a Vercel account
 
@@ -241,4 +252,4 @@ API:      https://entrenate-backend.up.railway.app/api/health
     └── src/lib/api.ts        # API Client
 ```
 
-With this, you will have your Entrenate.net app completely deployed in production! 🚀
+With this, you will have your Entrenate app completely deployed in production! 🚀

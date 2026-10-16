@@ -1,6 +1,6 @@
-# Entrenate.net Frontend
+# Entrenate Frontend
 
-Frontend for the **Entrenate.net** application — A premium personal workout management system designed for an optimal user experience.
+Frontend for the **Entrenate** application — A premium personal workout management system designed for an optimal user experience.
 
 ## Technologies
 

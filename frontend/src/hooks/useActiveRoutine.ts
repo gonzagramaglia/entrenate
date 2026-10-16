@@ -152,19 +152,7 @@ export function useActiveRoutine(setActiveTab: (tab: TabType) => void, setShowCo
 
     const handleStartRoutineEvent = (event: CustomEvent) => handleStartRoutine(event.detail.routine)
 
-    const handleStartRoutineFromModalEvent = (event: CustomEvent) => {
-      const routine = event.detail.routine
-      setActiveRoutine(routine)
-      setRoutineProgress(0)
-      setIsRoutinePaused(false)
-
-      localStorage.setItem('activeRoutine', JSON.stringify({
-        routine,
-        progress: 0,
-        isPaused: false,
-        timestamp: Date.now()
-      }))
-    }
+    const handleStartRoutineFromModalEvent = (event: CustomEvent) => handleStartRoutine(event.detail.routine)
 
     const handleStartRoutineWithExerciseEvent = (event: CustomEvent) => {
       const { routine, exercise } = event.detail

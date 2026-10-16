@@ -135,17 +135,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const signInWithGoogle = async () => {
-    setIsSigningIn(true)
-    try {
-      const { error } = await auth.signInWithGoogle()
-      // No reseteamos isSigningIn aquí porque la redirección ocurre inmediatamente
-      // El estado se reseteará cuando el usuario regrese y se detecte el cambio de auth
-      return { error }
-    } catch (error) {
-      console.error('Google sign in error:', error)
-      setIsSigningIn(false) // Solo resetear en caso de error
-      return { error }
-    }
+    console.warn('Google sign-in is disabled in guest-only mode.')
+    return { error: 'Google sign-in is disabled in guest-only mode' }
   }
 
   const logout = async () => {

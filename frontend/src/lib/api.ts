@@ -1,4 +1,12 @@
 import { supabase } from './supabase'
+import { MOCK_EXERCISES } from './mockExercises'
+
+function isGuestMode(): boolean {
+  return typeof window !== 'undefined' && localStorage.getItem('isGuest') === 'true'
+}
+
+const MOCK_DAY_IDS = new Set([998, 999, 1000])
+const MOCK_WORKOUT_IDS = new Set([10000, 10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008, 10009, 10010, 10011, 10012, 10013, 10014, 10015])
 
 const getApiBaseUrl = () => {
   // Temporal: hardcode para Railway deployment
@@ -132,56 +140,289 @@ class ApiClient {
     })
   }
 
+  private getLocalWorkoutDays(): any[] {
+    if (typeof window === 'undefined') return []
+    const raw = localStorage.getItem('entrenate-workout-days')
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed.filter(d => !MOCK_DAY_IDS.has(d.id)) : []
+    } catch {
+      return []
+    }
+  }
+
+  private setLocalWorkoutDays(days: any[]) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('entrenate-workout-days', JSON.stringify(days))
+    }
+  }
+
+  private getLocalWorkouts(): any[] {
+    if (typeof window === 'undefined') return []
+    const raw = localStorage.getItem('entrenate-workouts')
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed.filter(w => !MOCK_WORKOUT_IDS.has(w.id)) : []
+    } catch {
+      return []
+    }
+  }
+
+  private setLocalWorkouts(workouts: any[]) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('entrenate-workouts', JSON.stringify(workouts))
+    }
+  }
+
   // Workouts API
   async getWorkouts(date?: string, workoutDayId?: string) {
+    if (isGuestMode()) {
+      let workouts = this.getLocalWorkouts()
+      if (date) {
+        workouts = workouts.filter((w: any) => w.created_at?.startsWith(date) || w.date === date)
+      }
+      if (workoutDayId) {
+        workouts = workouts.filter((w: any) => String(w.workout_day_id) === String(workoutDayId))
+      }
+      return workouts
+    }
+
     const params = new URLSearchParams()
     if (date) params.append('date', date)
     if (workoutDayId) params.append('workout_day_id', workoutDayId)
 
     const query = params.toString()
     const endpoint = query ? `/workouts?${query}` : '/workouts'
-    return this.request(endpoint)
+    try {
+      return await this.request(endpoint)
+    } catch {
+      let workouts = this.getLocalWorkouts()
+      if (date) {
+        workouts = workouts.filter((w: any) => w.created_at?.startsWith(date) || w.date === date)
+      }
+      if (workoutDayId) {
+        workouts = workouts.filter((w: any) => String(w.workout_day_id) === String(workoutDayId))
+      }
+      return workouts
+    }
   }
 
   async createWorkout(workout: any) {
-    return this.request('/workouts', {
-      method: 'POST',
-      body: workout
-    })
+    if (isGuestMode()) {
+      return this.saveLocalWorkout(workout)
+    }
+    try {
+      return await this.request('/workouts', {
+        method: 'POST',
+        body: workout
+      })
+    } catch {
+      return this.saveLocalWorkout(workout)
+    }
+  }
+
+  private saveLocalWorkout(workout: any) {
+    const selectedDate = workout.date || new Date().toISOString().split('T')[0]
+    const days = this.getLocalWorkoutDays()
+    const workouts = this.getLocalWorkouts()
+
+    let exerciseName = workout.exercise_name
+    if (!exerciseName) {
+      const ex = MOCK_EXERCISES.find(e => e.id === Number(workout.exercise_id))
+      exerciseName = ex ? ex.name : `Ejercicio #${workout.exercise_id}`
+    }
+
+    let day = days.find((d: any) => d.date === selectedDate)
+    if (!day) {
+      day = {
+        id: Date.now(),
+        user_id: 'guest',
+        date: selectedDate,
+        name: exerciseName,
+        created_at: selectedDate,
+        updated_at: selectedDate,
+        effort: 5,
+        mood: 5
+      }
+      days.push(day)
+      this.setLocalWorkoutDays(days)
+    }
+
+    const newWorkout = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      user_id: 'guest',
+      workout_day_id: day.id,
+      exercise_id: Number(workout.exercise_id),
+      exercise_name: exerciseName,
+      reps: workout.reps !== undefined ? Number(workout.reps) : 0,
+      weight: workout.weight !== undefined ? Number(workout.weight) : 0,
+      seconds: workout.seconds !== undefined ? Number(workout.seconds) : undefined,
+      set: workout.set !== undefined ? Number(workout.set) : 1,
+      created_at: selectedDate,
+      observations: workout.observations || ''
+    }
+
+    workouts.push(newWorkout)
+    this.setLocalWorkouts(workouts)
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('workoutCreated', { detail: newWorkout }))
+    }
+
+    return newWorkout
   }
 
   async updateWorkout(id: number, workout: any) {
-    return this.request(`/workouts/${id}`, {
-      method: 'PUT',
-      body: workout
-    })
+    if (isGuestMode()) {
+      return this.updateLocalWorkout(id, workout)
+    }
+    try {
+      return await this.request(`/workouts/${id}`, {
+        method: 'PUT',
+        body: workout
+      })
+    } catch {
+      return this.updateLocalWorkout(id, workout)
+    }
+  }
+
+  private updateLocalWorkout(id: number, workout: any) {
+    const workouts = this.getLocalWorkouts()
+    const index = workouts.findIndex((w: any) => w.id === id)
+    if (index !== -1) {
+      workouts[index] = { ...workouts[index], ...workout }
+      this.setLocalWorkouts(workouts)
+      return workouts[index]
+    }
+    return workout
   }
 
   async updateWorkoutDayName(id: number, name: string) {
-    return this.request(`/workout-days/${id}/name`, {
-      method: 'PUT',
-      body: { name }
-    })
+    if (isGuestMode()) {
+      const days = this.getLocalWorkoutDays()
+      const index = days.findIndex((d: any) => d.id === id)
+      if (index !== -1) {
+        days[index].name = name
+        this.setLocalWorkoutDays(days)
+      }
+      return { success: true }
+    }
+    try {
+      return await this.request(`/workout-days/${id}/name`, {
+        method: 'PUT',
+        body: { name }
+      })
+    } catch {
+      const days = this.getLocalWorkoutDays()
+      const index = days.findIndex((d: any) => d.id === id)
+      if (index !== -1) {
+        days[index].name = name
+        this.setLocalWorkoutDays(days)
+      }
+      return { success: true }
+    }
   }
 
   async deleteWorkout(id: number) {
-    return this.request(`/workouts/${id}`, {
-      method: 'DELETE'
-    })
+    if (isGuestMode()) {
+      return this.deleteLocalWorkout(id)
+    }
+    try {
+      return await this.request(`/workouts/${id}`, {
+        method: 'DELETE'
+      })
+    } catch {
+      return this.deleteLocalWorkout(id)
+    }
+  }
+
+  private deleteLocalWorkout(id: number) {
+    let workouts = this.getLocalWorkouts()
+    const toDelete = workouts.find((w: any) => w.id === id)
+    workouts = workouts.filter((w: any) => w.id !== id)
+    this.setLocalWorkouts(workouts)
+
+    if (toDelete?.workout_day_id) {
+      const remainingInDay = workouts.filter((w: any) => w.workout_day_id === toDelete.workout_day_id)
+      if (remainingInDay.length === 0) {
+        let days = this.getLocalWorkoutDays()
+        days = days.filter((d: any) => d.id !== toDelete.workout_day_id)
+        this.setLocalWorkoutDays(days)
+      }
+    }
+    return { success: true }
+  }
+
+  async deleteDayWorkouts(workoutDayId: number, workoutIds: number[]) {
+    if (isGuestMode()) {
+      let workouts = this.getLocalWorkouts()
+      workouts = workouts.filter((w: any) => w.workout_day_id !== workoutDayId && !workoutIds.includes(w.id))
+      this.setLocalWorkouts(workouts)
+
+      let days = this.getLocalWorkoutDays()
+      days = days.filter((d: any) => d.id !== workoutDayId)
+      this.setLocalWorkoutDays(days)
+      return { success: true }
+    }
+    try {
+      await Promise.all(workoutIds.map(id => this.request(`/workouts/${id}`, { method: 'DELETE' })))
+      return { success: true }
+    } catch {
+      let workouts = this.getLocalWorkouts()
+      workouts = workouts.filter((w: any) => w.workout_day_id !== workoutDayId && !workoutIds.includes(w.id))
+      this.setLocalWorkouts(workouts)
+
+      let days = this.getLocalWorkoutDays()
+      days = days.filter((d: any) => d.id !== workoutDayId)
+      this.setLocalWorkoutDays(days)
+      return { success: true }
+    }
   }
 
   // Workout Days API
   async getWorkoutDays() {
-    return this.request('/workout-days')
+    if (isGuestMode()) {
+      return this.getLocalWorkoutDays()
+    }
+    try {
+      return await this.request('/workout-days')
+    } catch {
+      const local = this.getLocalWorkoutDays()
+      if (local.length > 0) return local
+      return []
+    }
   }
 
   // Exercises API
   async getExercises() {
-    return this.request('/exercises')
+    if (isGuestMode()) {
+      return MOCK_EXERCISES
+    }
+    try {
+      const res = await this.request('/exercises', { requireAuth: false })
+      if (Array.isArray(res) && res.length > 0) {
+        return res
+      }
+      return MOCK_EXERCISES
+    } catch {
+      return MOCK_EXERCISES
+    }
   }
 
   async getExercise(id: number) {
-    return this.request(`/exercises/${id}`)
+    if (isGuestMode()) {
+      const found = MOCK_EXERCISES.find(ex => ex.id === id)
+      if (found) return found
+    }
+    try {
+      return await this.request(`/exercises/${id}`, { requireAuth: false })
+    } catch {
+      const found = MOCK_EXERCISES.find(ex => ex.id === id)
+      if (found) return found
+      throw new Error(`Exercise ${id} not found`)
+    }
   }
 
 
@@ -344,13 +585,131 @@ class ApiClient {
     })
   }
 
+  private getLocalRoutines(): any[] {
+    if (typeof window === 'undefined') return []
+    const raw = localStorage.getItem('entrenate-routines')
+    if (raw !== null) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) return parsed
+      } catch {
+        // fallback
+      }
+    }
+    const defaultRoutine = {
+      id: 9999,
+      user_id: 'guest',
+      name: 'Rutina de Ejemplo',
+      is_active: false,
+      total_exercises: 5,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      exercises: [
+        {
+          id: 9995,
+          routine_id: 9999,
+          exercise_id: 100,
+          exercise_name: 'Calentamiento Dinámico',
+          sets: 1,
+          reps: 1,
+          weight: 0,
+          order_index: 0,
+          rest_time_seconds: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 9996,
+          routine_id: 9999,
+          exercise_id: 1,
+          exercise_name: 'Press de Banca',
+          sets: 3,
+          reps: 10,
+          weight: 60,
+          order_index: 1,
+          rest_time_seconds: 60,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 9997,
+          routine_id: 9999,
+          exercise_id: 2,
+          exercise_name: 'Sentadilla',
+          sets: 3,
+          reps: 12,
+          weight: 80,
+          order_index: 2,
+          rest_time_seconds: 90,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 9998,
+          routine_id: 9999,
+          exercise_id: 3,
+          exercise_name: 'Peso Muerto',
+          sets: 3,
+          reps: 8,
+          weight: 100,
+          order_index: 3,
+          rest_time_seconds: 120,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 9999,
+          routine_id: 9999,
+          exercise_id: 101,
+          exercise_name: 'Estiramiento',
+          sets: 1,
+          reps: 1,
+          weight: 0,
+          order_index: 4,
+          rest_time_seconds: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ]
+    }
+    const initial = [defaultRoutine]
+    this.setLocalRoutines(initial)
+    return initial
+  }
+
+  private setLocalRoutines(routines: any[]) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('entrenate-routines', JSON.stringify(routines))
+    }
+  }
+
   // Routines API
   async getUserRoutines() {
-    return this.request('/routines')
+    if (isGuestMode()) {
+      return this.getLocalRoutines()
+    }
+    try {
+      return await this.request('/routines')
+    } catch {
+      return this.getLocalRoutines()
+    }
   }
 
   async getUserRoutine(id: number) {
-    return this.request(`/routines/${id}`)
+    if (isGuestMode()) {
+      const routines = this.getLocalRoutines()
+      const found = routines.find(r => r.id === id)
+      if (found) return found
+      throw new Error(`Routine ${id} not found`)
+    }
+    try {
+      return await this.request(`/routines/${id}`)
+    } catch {
+      const routines = this.getLocalRoutines()
+      const found = routines.find(r => r.id === id)
+      if (found) return found
+      throw new Error(`Routine ${id} not found`)
+    }
   }
 
   async createUserRoutine(routine: {
@@ -366,27 +725,154 @@ class ApiClient {
       notes?: string
     }>
   }) {
-    return this.request('/routines', {
-      method: 'POST',
-      body: routine
+    if (isGuestMode()) {
+      return this.createLocalRoutine(routine)
+    }
+    try {
+      return await this.request('/routines', {
+        method: 'POST',
+        body: routine
+      })
+    } catch {
+      return this.createLocalRoutine(routine)
+    }
+  }
+
+  private createLocalRoutine(routine: any) {
+    const routines = this.getLocalRoutines()
+    const newId = Date.now()
+    const exercises = (routine.exercises || []).map((ex: any, idx: number) => {
+      let exName = ex.exercise_name
+      if (!exName) {
+        const found = MOCK_EXERCISES.find(e => e.id === ex.exercise_id)
+        exName = found ? found.name : `Ejercicio #${ex.exercise_id}`
+      }
+      return {
+        id: Date.now() + idx + 1,
+        routine_id: newId,
+        exercise_id: ex.exercise_id,
+        exercise_name: exName,
+        sets: ex.sets || 3,
+        reps: ex.reps || 10,
+        weight: ex.weight || 0,
+        order_index: ex.order_index !== undefined ? ex.order_index : idx,
+        rest_time_seconds: ex.rest_time_seconds || 60,
+        notes: ex.notes || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
     })
+
+    const newRoutine = {
+      id: newId,
+      user_id: 'guest',
+      name: routine.name,
+      description: routine.description || '',
+      is_active: false,
+      total_exercises: exercises.length,
+      exercises,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    routines.unshift(newRoutine)
+    this.setLocalRoutines(routines)
+    return newRoutine
   }
 
   async updateUserRoutine(id: number, routine: {
     name?: string
     description?: string
     is_active?: boolean
+    exercises?: any[]
   }) {
-    return this.request(`/routines/${id}`, {
-      method: 'PUT',
-      body: routine
-    })
+    if (isGuestMode()) {
+      return this.updateLocalRoutine(id, routine)
+    }
+    try {
+      return await this.request(`/routines/${id}`, {
+        method: 'PUT',
+        body: routine
+      })
+    } catch {
+      return this.updateLocalRoutine(id, routine)
+    }
+  }
+
+  private updateLocalRoutine(id: number, routine: any) {
+    const routines = this.getLocalRoutines()
+    const index = routines.findIndex(r => r.id === id)
+    if (index !== -1) {
+      const existing = routines[index]
+      let exercises = existing.exercises || []
+      if (routine.exercises) {
+        exercises = routine.exercises.map((ex: any, idx: number) => {
+          let exName = ex.exercise_name
+          if (!exName) {
+            const found = MOCK_EXERCISES.find(e => e.id === ex.exercise_id)
+            exName = found ? found.name : `Ejercicio #${ex.exercise_id}`
+          }
+          return {
+            id: ex.id || Date.now() + idx + 1,
+            routine_id: id,
+            exercise_id: ex.exercise_id,
+            exercise_name: exName,
+            sets: ex.sets || 3,
+            reps: ex.reps || 10,
+            weight: ex.weight || 0,
+            order_index: ex.order_index !== undefined ? ex.order_index : idx,
+            rest_time_seconds: ex.rest_time_seconds || 60,
+            notes: ex.notes || '',
+            created_at: ex.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        })
+      }
+
+      routines[index] = {
+        ...existing,
+        ...routine,
+        exercises,
+        total_exercises: exercises.length,
+        updated_at: new Date().toISOString()
+      }
+      this.setLocalRoutines(routines)
+      return routines[index]
+    }
+    return routine
   }
 
   async deleteUserRoutine(id: number) {
-    return this.request(`/routines/${id}`, {
-      method: 'DELETE'
-    })
+    if (isGuestMode()) {
+      return this.deleteLocalRoutine(id)
+    }
+    try {
+      return await this.request(`/routines/${id}`, {
+        method: 'DELETE'
+      })
+    } catch {
+      return this.deleteLocalRoutine(id)
+    }
+  }
+
+  private deleteLocalRoutine(id: number) {
+    let routines = this.getLocalRoutines()
+    routines = routines.filter(r => Number(r.id) !== Number(id))
+    this.setLocalRoutines(routines)
+    if (typeof window !== 'undefined') {
+      try {
+        const activeRaw = localStorage.getItem('activeRoutine')
+        if (activeRaw) {
+          const parsed = JSON.parse(activeRaw)
+          if (Number(parsed?.routine?.id) === Number(id)) {
+            localStorage.removeItem('activeRoutine')
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return { success: true }
   }
 }
 

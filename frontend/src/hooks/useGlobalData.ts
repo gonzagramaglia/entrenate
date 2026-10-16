@@ -4,12 +4,8 @@ import { useUserSettings } from '../contexts/UserSettingsContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { apiClient } from '../lib/api'
 import type { Workout, WorkoutDay } from '../types/workout'
-
-type Exercise = {
-  id: number
-  name: string
-  bodyweight?: boolean
-}
+import type { Exercise } from '../types/exercise'
+import { MOCK_EXERCISES } from '../lib/mockExercises'
 
 export function useGlobalData() {
   const { isGuest } = useAuth()
@@ -18,7 +14,7 @@ export function useGlobalData() {
   
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [workoutDays, setWorkoutDays] = useState<WorkoutDay[]>([])
-  const [exercises, setExercises] = useState<Exercise[]>([])
+  const [exercises, setExercises] = useState<Exercise[]>(MOCK_EXERCISES)
   const [isLoading, setIsLoading] = useState(false)
 
   const loadData = useCallback(async () => {
@@ -73,288 +69,48 @@ export function useGlobalData() {
         // Datos Mock para Modo Invitado
         let mockExercises: Exercise[] = []
         try {
-          mockExercises = await apiClient.getExercises() as Exercise[]
-        } catch (e) {
-          console.warn('Could not fetch exercises for guest, using local mocks')
+          const apiExercises = await apiClient.getExercises() as Exercise[]
+          if (Array.isArray(apiExercises) && apiExercises.length > 0) {
+            mockExercises = apiExercises
+          }
+        } catch {
+          console.warn('Could not fetch exercises for guest, using mock exercises library')
         }
 
         const exercisesList = (Array.isArray(mockExercises) && mockExercises.length > 0) 
           ? mockExercises 
-          : [
-              { id: 1, name: 'Press de Banca' },
-              { id: 2, name: 'Sentadilla' },
-              { id: 3, name: 'Peso Muerto' },
-              { id: 4, name: 'Press Militar' },
-              { id: 5, name: 'Curl de Bíceps' },
-              { id: 6, name: 'Extensiones de Tríceps' },
-              { id: 7, name: 'Remo con Barra' },
-              { id: 8, name: 'Prensa' },
-              { id: 9, name: 'Martillo' },
-              { id: 10, name: 'Dominadas' },
-              { id: 11, name: 'Gemelos en Máquina' },
-              { id: 100, name: 'Calentamiento' },
-              { id: 101, name: 'Estiramiento' }
-            ]
+          : MOCK_EXERCISES
         setExercises(exercisesList)
         
-        // Sesiones del 20, 22 y 24 de abril
-        const april24 = '2026-04-24'
-        const april22 = '2026-04-22'
-        const april20 = '2026-04-20'
+        // Limpiar datos mock antiguos de localStorage si existen
+        const MOCK_DAY_IDS = new Set([998, 999, 1000])
+        const MOCK_WORKOUT_IDS = new Set([10000, 10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008, 10009, 10010, 10011, 10012, 10013, 10014, 10015, 10016, 10017])
         
-        const mockWorkoutDays: WorkoutDay[] = [
-          {
-            id: 1000,
-            user_id: 'guest',
-            date: april24,
-            name: 'Brazos (Bíceps y Tríceps)',
-            created_at: april24,
-            updated_at: april24,
-            effort: 3,
-            mood: 5
-          },
-          {
-            id: 999,
-            user_id: 'guest',
-            date: april22,
-            name: 'Pecho y Espalda',
-            created_at: april22,
-            updated_at: april22,
-            effort: 4,
-            mood: 4
-          },
-          {
-            id: 998,
-            user_id: 'guest',
-            date: april20,
-            name: 'Piernas y Glúteos',
-            created_at: april20,
-            updated_at: april20,
-            effort: 5,
-            mood: 3
+        let initialDays: WorkoutDay[] = []
+        let initialWorkouts: Workout[] = []
+
+        const savedDays = localStorage.getItem('entrenate-workout-days')
+        if (savedDays) {
+          try {
+            initialDays = JSON.parse(savedDays).filter((d: any) => !MOCK_DAY_IDS.has(d.id))
+            localStorage.setItem('entrenate-workout-days', JSON.stringify(initialDays))
+          } catch {
+            initialDays = []
           }
-        ]
-        
-        const mockWorkouts: Workout[] = [
-          // Brazos - 24 Abril
-          {
-            id: 10000,
-            user_id: 'guest',
-            workout_day_id: 1000,
-            exercise_id: 100,
-            exercise_name: language === 'es' ? 'Calentamiento' : 'Warm Up',
-            reps: 1,
-            weight: 0,
-            seconds: 300,
-            set: 1,
-            created_at: april24,
-            observations: ''
-          },
-          {
-            id: 10001,
-            user_id: 'guest',
-            workout_day_id: 1000,
-            exercise_id: 5,
-            exercise_name: 'Curl de Bíceps',
-            reps: 12,
-            weight: 15,
-            set: 1,
-            created_at: april24,
-            observations: 'Buen pump'
-          },
-          {
-            id: 10002,
-            user_id: 'guest',
-            workout_day_id: 1000,
-            exercise_id: 5,
-            exercise_name: 'Curl de Bíceps',
-            reps: 10,
-            weight: 15,
-            set: 2,
-            created_at: april24,
-            observations: ''
-          },
-          {
-            id: 10003,
-            user_id: 'guest',
-            workout_day_id: 1000,
-            exercise_id: 6,
-            exercise_name: 'Extensiones de Tríceps',
-            reps: 15,
-            weight: 20,
-            set: 1,
-            created_at: april24,
-            observations: ''
-          },
-          {
-            id: 10010,
-            user_id: 'guest',
-            workout_day_id: 1000,
-            exercise_id: 9,
-            exercise_name: 'Martillo',
-            reps: 12,
-            weight: 12,
-            set: 1,
-            created_at: april24,
-            observations: ''
-          },
-          {
-            id: 10013,
-            user_id: 'guest',
-            workout_day_id: 1000,
-            exercise_id: 101,
-            exercise_name: language === 'es' ? 'Estiramiento' : 'Stretching',
-            reps: 1,
-            weight: 0,
-            seconds: 300,
-            set: 1,
-            created_at: april24,
-            observations: ''
-          },
-          
-          // Pecho y Espalda - 22 Abril
-          {
-            id: 10014,
-            user_id: 'guest',
-            workout_day_id: 999,
-            exercise_id: 100,
-            exercise_name: language === 'es' ? 'Calentamiento' : 'Warm Up',
-            reps: 1,
-            weight: 0,
-            seconds: 300,
-            set: 1,
-            created_at: april22,
-            observations: ''
-          },
-          {
-            id: 10004,
-            user_id: 'guest',
-            workout_day_id: 999,
-            exercise_id: 1,
-            exercise_name: 'Press de Banca',
-            reps: 10,
-            weight: 70,
-            set: 1,
-            created_at: april22,
-            observations: 'Récord personal'
-          },
-          {
-            id: 10005,
-            user_id: 'guest',
-            workout_day_id: 999,
-            exercise_id: 7,
-            exercise_name: 'Remo con Barra',
-            reps: 12,
-            weight: 50,
-            set: 1,
-            created_at: april22,
-            observations: ''
-          },
-          {
-            id: 10011,
-            user_id: 'guest',
-            workout_day_id: 999,
-            exercise_id: 10,
-            exercise_name: 'Dominadas',
-            reps: 10,
-            weight: 0,
-            set: 1,
-            created_at: april22,
-            observations: ''
-          },
-          {
-            id: 10015,
-            user_id: 'guest',
-            workout_day_id: 999,
-            exercise_id: 101,
-            exercise_name: language === 'es' ? 'Estiramiento' : 'Stretching',
-            reps: 1,
-            weight: 0,
-            seconds: 300,
-            set: 1,
-            created_at: april22,
-            observations: ''
-          },
-          
-          // Piernas - 20 Abril
-          {
-            id: 10016,
-            user_id: 'guest',
-            workout_day_id: 998,
-            exercise_id: 100,
-            exercise_name: language === 'es' ? 'Calentamiento' : 'Warm Up',
-            reps: 1,
-            weight: 0,
-            seconds: 300,
-            set: 1,
-            created_at: april20,
-            observations: ''
-          },
-          {
-            id: 10006,
-            user_id: 'guest',
-            workout_day_id: 998,
-            exercise_id: 2,
-            exercise_name: 'Sentadilla',
-            reps: 12,
-            weight: 90,
-            set: 1,
-            created_at: april20,
-            observations: 'Muy pesado pero bien'
-          },
-          {
-            id: 10007,
-            user_id: 'guest',
-            workout_day_id: 998,
-            exercise_id: 2,
-            exercise_name: 'Sentadilla',
-            reps: 10,
-            weight: 90,
-            set: 2,
-            created_at: april20,
-            observations: ''
-          },
-          {
-            id: 10008,
-            user_id: 'guest',
-            workout_day_id: 998,
-            exercise_id: 8,
-            exercise_name: 'Prensa',
-            reps: 15,
-            weight: 120,
-            set: 1,
-            created_at: april20,
-            observations: ''
-          },
-          {
-            id: 10012,
-            user_id: 'guest',
-            workout_day_id: 998,
-            exercise_id: 11,
-            exercise_name: 'Gemelos en Máquina',
-            reps: 20,
-            weight: 40,
-            set: 1,
-            created_at: april20,
-            observations: ''
-          },
-          {
-            id: 10017,
-            user_id: 'guest',
-            workout_day_id: 998,
-            exercise_id: 101,
-            exercise_name: language === 'es' ? 'Estiramiento' : 'Stretching',
-            reps: 1,
-            weight: 0,
-            seconds: 300,
-            set: 1,
-            created_at: april20,
-            observations: ''
+        }
+
+        const savedWorkouts = localStorage.getItem('entrenate-workouts')
+        if (savedWorkouts) {
+          try {
+            initialWorkouts = JSON.parse(savedWorkouts).filter((w: any) => !MOCK_WORKOUT_IDS.has(w.id))
+            localStorage.setItem('entrenate-workouts', JSON.stringify(initialWorkouts))
+          } catch {
+            initialWorkouts = []
           }
-        ]
-        
-        setWorkoutDays(mockWorkoutDays)
-        setWorkouts(mockWorkouts)
+        }
+
+        setWorkoutDays(initialDays)
+        setWorkouts(initialWorkouts)
         setIsLoading(false)
         return
       }
@@ -368,7 +124,7 @@ export function useGlobalData() {
 
       setWorkouts(Array.isArray(workoutsData) ? workoutsData : [])
       setWorkoutDays(Array.isArray(workoutDaysData) ? workoutDaysData : [])
-      setExercises(Array.isArray(exercisesData) ? exercisesData : [])
+      setExercises(Array.isArray(exercisesData) && exercisesData.length > 0 ? exercisesData : MOCK_EXERCISES)
 
       // Inicializar todos los ejercicios como favoritos si no hay configuración previa
       // Usar setTimeout para asegurar que las configuraciones se hayan cargado primero
@@ -394,7 +150,7 @@ export function useGlobalData() {
       }
 
       // Solo usar ejercicios por defecto si no hay ninguno cargado
-      setExercises([])
+      setExercises(prev => prev.length > 0 ? prev : MOCK_EXERCISES)
     } finally {
       setIsLoading(false)
     }
@@ -421,6 +177,19 @@ export function useGlobalData() {
       localStorage.setItem('entrenate-workout-days', JSON.stringify(workoutDays))
     }
   }, [workoutDays])
+
+  // Escuchar eventos de creación de entrenamientos
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadData()
+    }
+    window.addEventListener('workoutCreated', handleRefresh)
+    window.addEventListener('socialFeedRefresh', handleRefresh)
+    return () => {
+      window.removeEventListener('workoutCreated', handleRefresh)
+      window.removeEventListener('socialFeedRefresh', handleRefresh)
+    }
+  }, [loadData])
 
   return {
     workouts,

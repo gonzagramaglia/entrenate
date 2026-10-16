@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 frontend/node_modules/
+.yarn/install-state.gz
+frontend/.yarn/install-state.gz
 
 # Build outputs
 frontend/dist/

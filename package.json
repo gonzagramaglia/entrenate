@@ -2,11 +2,14 @@
   "name": "entrenate-root",
   "private": true,
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev": "yarn --cwd frontend dev",
+    "build": "yarn --cwd frontend build",
+    "test": "yarn --cwd frontend test"
   },
   "devDependencies": {
-    "husky": "^9.0.11",
     "@commitlint/cli": "^19.3.0",
-    "@commitlint/config-conventional": "^19.2.2"
+    "@commitlint/config-conventional": "^19.2.2",
+    "husky": "^9.0.11"
   }
 }

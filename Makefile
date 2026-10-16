@@ -41,7 +41,7 @@ dev:
 
 dev-frontend:
 	@echo "🌐 Starting frontend development server..."
-	cd frontend && npm run dev
+	cd frontend && yarn dev
 
 dev-backend:
 	@echo "⚙️ Starting backend development server..."
@@ -52,7 +52,7 @@ build: build-frontend build-backend
 
 build-frontend:
 	@echo "🏗️ Building frontend for production..."
-	cd frontend && npm run build
+	cd frontend && yarn build
 
 build-backend:
 	@echo "🏗️ Building backend for production..."
@@ -63,7 +63,7 @@ test: test-frontend test-backend
 
 test-frontend:
 	@echo "🧪 Running frontend tests..."
-	cd frontend && npm run test
+	cd frontend && yarn test
 
 test-backend:
 	@echo "🧪 Running backend tests..."

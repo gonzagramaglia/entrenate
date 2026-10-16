@@ -109,7 +109,7 @@ export default function AppLayout({ children, showFooter = true }: AppLayoutProp
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundImage: 'url(/wallpaper.png)',
+        backgroundImage: `url(${import.meta.env.BASE_URL}wallpaper.png)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',

@@ -22,7 +22,7 @@ import {
 import { translations } from '../../i18n/translations'
 import { formatTimeForSport } from '../../lib/dateUtils'
 import { getSportEmoji } from '../../lib/exerciseUtils'
-import type { ExerciseGroup, WorkoutDay } from '../../types/workout'
+import type { ExerciseGroup, WorkoutDay, WorkoutDayWithExercises } from '../../types/workout'
 
 interface EditNameModalState {
   show: boolean
@@ -34,6 +34,11 @@ interface EditNameModalState {
 interface DeleteConfirmationState {
   show: boolean
   workoutId: number | null
+}
+
+export interface DeleteDayConfirmationState {
+  show: boolean
+  day: WorkoutDayWithExercises | null
 }
 
 interface EditObservationModalState {
@@ -72,6 +77,11 @@ interface WorkoutHistoryDialogsProps {
   handleConfirmDelete: () => void
   setExpandedDays: (days: Set<string>) => void
 
+  // Delete day confirmation modal
+  deleteDayConfirmation: DeleteDayConfirmationState
+  setDeleteDayConfirmation: (state: DeleteDayConfirmationState) => void
+  handleConfirmDeleteDay: () => void
+
   // Edit observation modal
   editObservationModal: EditObservationModalState
   setEditObservationModal: (state: EditObservationModalState) => void
@@ -98,6 +108,9 @@ export default function WorkoutHistoryDialogs({
   setDeleteConfirmation,
   handleConfirmDelete,
   setExpandedDays,
+  deleteDayConfirmation,
+  setDeleteDayConfirmation,
+  handleConfirmDeleteDay,
   editObservationModal,
   setEditObservationModal,
   handleSaveObservation,
@@ -157,7 +170,7 @@ export default function WorkoutHistoryDialogs({
             }}
           />
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1 }}>
+        <DialogActions sx={{ p: 3, pt: 1, justifyContent: 'center', gap: 1.5 }}>
           <Button
             onClick={() => setEditNameModal({ show: false, dayId: null, currentName: '', newName: '' })}
             sx={{
@@ -220,21 +233,22 @@ export default function WorkoutHistoryDialogs({
         }}
       >
         <DialogTitle sx={{
-          pb: 2,
+          pt: 3.5,
+          pb: 1,
           textAlign: 'center',
           fontWeight: 600,
           color: 'error.main'
         }}>
           ⚠️ {language === 'es' ? 'Confirmar eliminación' : 'Confirm deletion'}
         </DialogTitle>
-        <DialogContent sx={{ py: 2, px: 3 }}>
+        <DialogContent sx={{ pt: '8px !important', pb: 0.5, px: 3 }}>
           <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="body1" color="text.secondary" sx={{ pb: 1 }}>
+            <Typography variant="body1" color="text.secondary" sx={{ pb: 0, lineHeight: 1.5 }}>
               {language === 'es' ? 'Esta acción no se puede deshacer. El ejercicio será eliminado permanentemente.' : 'This action cannot be undone. The exercise will be permanently deleted.'}
             </Typography>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1, gap: 2, justifyContent: 'center' }}>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 2, gap: 1.5, justifyContent: 'center' }}>
           <Button
             onClick={() => {
               setDeleteConfirmation({ show: false, workoutId: null });
@@ -243,7 +257,7 @@ export default function WorkoutHistoryDialogs({
             variant="outlined"
             sx={{
               px: 4,
-              py: 1.5,
+              py: 1.6,
               borderRadius: 2,
               fontWeight: 600,
               textTransform: 'none',
@@ -265,7 +279,101 @@ export default function WorkoutHistoryDialogs({
             disabled={loadingWorkoutId !== null}
             sx={{
               px: 4,
-              py: 1.5,
+              py: 1.6,
+              borderRadius: 2,
+              fontWeight: 600,
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              backgroundColor: '#d32f2f',
+              '&:hover': {
+                backgroundColor: '#c62828'
+              },
+              '&:disabled': {
+                backgroundColor: '#ffcdd2',
+                color: '#c62828'
+              }
+            }}
+          >
+            {loadingWorkoutId !== null ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={16} color="inherit" />
+                {language === 'es' ? 'Eliminando...' : 'Deleting...'}
+              </Box>
+            ) : (
+              translations[language].common.delete
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de confirmación de eliminación de entrenamiento del día */}
+      <Dialog
+        open={deleteDayConfirmation.show}
+        onClose={(_, reason) => {
+          if (reason !== 'backdropClick') {
+            setDeleteDayConfirmation({ show: false, day: null });
+          }
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            border: '1px solid',
+            borderColor: 'divider'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          pt: 3.5,
+          pb: 1,
+          textAlign: 'center',
+          fontWeight: 600,
+          color: 'error.main'
+        }}>
+          ⚠️ {language === 'es' ? 'Eliminar entrenamiento del día' : 'Delete day workout'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: '8px !important', pb: 0.5, px: 3 }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="body1" color="text.secondary" sx={{ pb: 0, lineHeight: 1.5 }}>
+              {language === 'es'
+                ? `¿Estás seguro de que quieres eliminar todo el entrenamiento del día ${deleteDayConfirmation.day ? formatDate(deleteDayConfirmation.day.workoutDay.date) : ''}? Esta acción no se puede deshacer.`
+                : `Are you sure you want to delete all workouts for ${deleteDayConfirmation.day ? formatDate(deleteDayConfirmation.day.workoutDay.date) : ''}? This action cannot be undone.`}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 2, gap: 1.5, justifyContent: 'center' }}>
+          <Button
+            onClick={() => {
+              setDeleteDayConfirmation({ show: false, day: null });
+            }}
+            variant="outlined"
+            sx={{
+              px: 4,
+              py: 1.6,
+              borderRadius: 2,
+              fontWeight: 600,
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              borderColor: 'grey.400',
+              color: 'text.primary',
+              '&:hover': {
+                borderColor: 'grey.600',
+                backgroundColor: 'grey.50'
+              }
+            }}
+          >
+            {translations[language].common.cancel}
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteDay}
+            color="error"
+            variant="contained"
+            disabled={loadingWorkoutId !== null}
+            sx={{
+              px: 4,
+              py: 1.6,
               borderRadius: 2,
               fontWeight: 600,
               textTransform: 'none',
